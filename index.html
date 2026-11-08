@@ -158,6 +158,9 @@ html.compact #mpadLift{grid-template-rows:42px 42px}
 #app.panelopen #stickR{right:calc(var(--pw) + 24px)}
 #app.panelopen #stage.mode-build #presetBar{right:calc(var(--pw) + 20px)}
 #stage.clean #modeSeg,#stage.clean #panelBtn{display:none!important}
+#refBtn{display:none}
+#stage.mode-direct #refBtn{display:block}
+#stage.clean #refBtn,#stage.boardmode #refBtn{display:none!important}
 #mViewSeg,#mTools{display:none}
 #stage.mode-model #mViewSeg{display:flex}
 #stage.mode-model #mTools{display:flex}
@@ -266,6 +269,8 @@ details.folder[open] .fic{background:transparent;box-shadow:inset 0 0 0 2px var(
 #tabs button.on{color:var(--ink);border-bottom-color:var(--tape)}
 #tabs .badge{background:var(--tape);color:var(--tape-ink);border-radius:999px;font-size:11px;font-weight:700;min-width:18px;height:18px;padding:0 5px;display:none;align-items:center;justify-content:center}
 #tabs .badge.has{display:inline-flex}
+#verLine{flex:none;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 14px;border-top:1px solid var(--line);font-size:11.5px;color:var(--ink-2)}
+#verLine button{font-size:11.5px;font-weight:700;color:var(--ink);padding:4px 8px;border-radius:7px;background:var(--panel-2)}
 #tabbody{flex:1;overflow:auto;padding:12px 16px 28px;-webkit-overflow-scrolling:touch}
 section{display:none}
 section.on{display:block}
@@ -342,6 +347,28 @@ details.more>*:last-child{margin-bottom:10px}
 #toast.show{opacity:1;transform:translate(-50%,0)}
 #app:has(#stage.mode-model) #toast{bottom:76px}
 @media (prefers-reduced-motion:reduce){#hint,#toast{transition:none}}
+/* keep the buttons clear of the phone's own bars (status bar, notch, home bar); the picture stays full screen */
+.topbar{top:calc(10px + var(--st,0px));left:calc(10px + var(--sl,0px));right:calc(10px + var(--sr,0px))}
+html.compact .topbar{top:calc(6px + var(--st,0px));left:calc(6px + var(--sl,0px));right:calc(6px + var(--sr,0px))}
+#hint,#placebar,#boardBar{left:calc(10px + var(--sl,0px))}
+#presetBar{left:calc(10px + var(--sl,0px));right:calc(196px + var(--sr,0px))}
+#stage.mode-build #presetBar{right:calc(10px + var(--sr,0px))}
+#app.panelopen #stage.mode-build #presetBar{right:calc(var(--pw) + 20px + var(--sr,0px))}
+#mini{right:calc(10px + var(--sr,0px))}
+#app.panelopen #mini{right:calc(var(--pw) + 20px + var(--sr,0px))}
+#panel{right:calc(10px + var(--sr,0px));bottom:calc(10px + var(--sb,0px))}
+html.compact #panel{right:calc(6px + var(--sr,0px));bottom:calc(6px + var(--sb,0px))}
+.mpad{bottom:calc(14px + var(--sb,0px))}
+#mpadMove{left:calc(14px + var(--sl,0px))}
+#mpadLift{right:calc(14px + var(--sr,0px))}
+#app.panelopen #mpadLift{right:calc(var(--pw) + 24px + var(--sr,0px))}
+#mTools{left:calc(10px + var(--sl,0px));right:calc(10px + var(--sr,0px));bottom:calc(10px + var(--sb,0px))}
+#app.panelopen #mTools{right:calc(var(--pw) + 20px + var(--sr,0px))}
+#boardSheet{left:calc(10px + var(--sl,0px));right:calc(10px + var(--sr,0px));bottom:calc(10px + var(--sb,0px))}
+#vlabel{right:calc(12px + var(--sr,0px));bottom:calc(10px + var(--sb,0px))}
+#toast{bottom:calc(18px + var(--sb,0px))}
+#app:has(#stage.mode-model) #toast{bottom:calc(76px + var(--sb,0px))}
+#inkEd .inkbar{padding-left:calc(10px + var(--sl,0px));padding-right:calc(10px + var(--sr,0px))}
 </style>
 </head>
 <body>
@@ -379,6 +406,7 @@ details.more>*:last-child{margin-bottom:10px}
         <button class="tbtn" id="stickBtn" style="display:none">Sticks</button>
         <button class="tbtn sq" id="undoBtn" aria-label="Undo" title="Undo (Ctrl+Z)">&#8630;</button>
         <button class="tbtn sq" id="redoBtn" aria-label="Redo" title="Redo (Ctrl+Shift+Z)">&#8631;</button>
+        <button class="tbtn" id="refBtn" title="Show a reference picture over the camera frame">Reference</button>
         <button class="tbtn" id="uiBtn">Hide UI</button>
         <button class="tbtn sq" id="panelBtn" aria-label="Open panel" aria-expanded="false" title="Panel (P)"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 5h8M15 5h2M3 10h3M10 10h7M3 15h9M16 15h1"/><circle cx="13" cy="5" r="2"/><circle cx="8" cy="10" r="2"/><circle cx="14" cy="15" r="2"/></svg></button>
         <button class="shotbtn" id="shotBtn"><i></i>Add shot</button>
@@ -437,6 +465,7 @@ details.more>*:last-child{margin-bottom:10px}
       <section data-tab="library"></section>
       <section data-tab="pose"></section>
     </div>
+    <div id="verLine"><span id="verTxt"></span><button id="verBtn" type="button">Check for updates</button></div>
   </div>
   <div id="inkEd">
     <div class="inkbar"><button class="tbtn" id="inkCancel">Cancel</button><b id="inkTitle">Sketch on shot</b><button class="shotbtn" id="inkDone">Done</button></div>
@@ -462,6 +491,7 @@ const D2R=Math.PI/180, R2D=180/Math.PI;
 const $=(s,r=document)=>r.querySelector(s);
 /* Claude features (AI models, matching a still) work only inside the published Claude page */
 const HAS_AI=!!(window.claude&&typeof window.claude.use==='function');
+const APP_VERSION='15 (8 Nov 2026)';
 const clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
 const stage=$('#stage'), canvas=$('#gl');
 
@@ -479,29 +509,31 @@ safeProbe.style.cssText='position:fixed;left:0;top:0;width:0;height:0;visibility
 document.body.appendChild(safeProbe);
 const safe={t:0,r:0,b:0,l:0};
 function readSafe(){const c=getComputedStyle(safeProbe);safe.t=parseFloat(c.paddingTop)||0;safe.r=parseFloat(c.paddingRight)||0;safe.b=parseFloat(c.paddingBottom)||0;safe.l=parseFloat(c.paddingLeft)||0;}
+/* the app always uses the whole screen; only the buttons step in from the phone's bars (in app coordinates) */
+const safeApp={l:0,r:0,t:0,b:0};
+let rotTipShown=false;
 function applyLayout(){
   readSafe();
   const iw=window.innerWidth, ih=window.innerHeight;
   const rot=forceLandscape&&ih>iw&&iw<900;
-  const app=document.getElementById('app');
-  let aw,ah;
-  if(rot){
-    /* turned a quarter: the phone's top bar becomes the app's left edge, the home bar its right edge */
-    aw=ih-safe.t-Math.min(safe.b,24); ah=iw-safe.l-safe.r;
-    Object.assign(app.style,{left:safe.l+'px',top:'0px',width:aw+'px',height:ah+'px',transform:'translateY('+safe.t+'px) rotate(90deg) translateY(-100%)'});
-  }else{
-    aw=iw-safe.l-safe.r; ah=ih-safe.t-Math.min(safe.b,20);
-    Object.assign(app.style,{left:safe.l+'px',top:safe.t+'px',width:aw+'px',height:ah+'px',transform:'none'});
-  }
+  const aw=rot?ih:iw, ah=rot?iw:ih, app=document.getElementById('app');
+  ['left','top','width','height','transform'].forEach(k=>app.style.removeProperty(k));
   root.classList.toggle('rot',rot);
   root.classList.toggle('compact',ah<=520);
   root.style.setProperty('--aw',aw+'px'); root.style.setProperty('--ah',ah+'px');
+  /* turned a quarter: the phone's top bar lies along the app's left edge, the home bar along its right */
+  Object.assign(safeApp,rot?{l:safe.t,r:safe.b,t:safe.r,b:safe.l}:{l:safe.l,r:safe.r,t:safe.t,b:safe.b});
+  ['l','r','t','b'].forEach(k=>app.style.setProperty('--s'+k,safeApp[k]+'px'));
+  if(rot&&!rotTipShown&&(navigator.standalone||matchMedia('(display-mode: standalone)').matches||matchMedia('(display-mode: fullscreen)').matches)){
+    rotTipShown=true;
+    setTimeout(()=>{try{toast('Tip: turn off rotation lock and turn your phone sideways for the full screen');}catch(err){}},1500);
+  }
 }
 applyLayout();
 window.addEventListener('resize',applyLayout);
 window.addEventListener('orientationchange',applyLayout);
 /* screen coordinates -> app coordinates (undoes the quarter turn when rotated) */
-function toApp(cx,cy){return root.classList.contains('rot')?{x:cy-safe.t,y:window.innerWidth-safe.r-cx}:{x:cx-safe.l,y:cy-safe.t};}
+function toApp(cx,cy){return root.classList.contains('rot')?{x:cy,y:window.innerWidth-cx}:{x:cx,y:cy};}
 function lp(e){const a=toApp(e.clientX,e.clientY);return {x:a.x-stage.offsetLeft,y:a.y-stage.offsetTop};}
 
 /* =====================================================================
@@ -1682,7 +1714,7 @@ function frameRect(w,h){
 }
 function pipRect(w,h){
   const ar=ASPECTS[cam.aspect], pw=Math.min(w*.4,230), ph=pw/ar;
-  return {left:10,top:h-10-ph,width:pw,height:ph};
+  return {left:10+safeApp.l,top:h-10-safeApp.b-ph,width:pw,height:ph};
 }
 const VIEW_HINT={
   director:'Drag to orbit. Drag a character or the yellow disc to move it.',
@@ -2633,8 +2665,10 @@ function loadPicture(file,maxDim){
 }
 const dataURLBlob=d=>{const [h,b]=d.split(',');const bin=atob(b),u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);return new Blob([u],{type:(h.match(/data:([^;]+)/)||[])[1]||'image/jpeg'});};
 const still={src:null,w:0,h:0,show:true,opacity:.5};
+let pickStill=()=>{};
 function applyStill(){
-  const im=$('#stillImg');
+  const im=$('#stillImg'), rb=$('#refBtn');
+  if(rb){rb.classList.toggle('on',!!still.src&&still.show);rb.textContent=still.src?(still.show?'Reference on':'Reference off'):'Reference';}
   if(!still.src){im.style.display='none';im.removeAttribute('src');return;}
   if(im.getAttribute('src')!==still.src) im.src=still.src;
   im.style.display=still.show?'block':'none'; im.style.opacity=still.opacity;
@@ -2801,6 +2835,7 @@ async function matchStill(say){
   const st=addNote(ms,''); st.setAttribute('aria-live','polite');
   const say=t=>{st.textContent=t;};
   addBtn(mb,'Choose a still…','',()=>fin.click());
+  pickStill=()=>fin.click();
   let matchBtn=null;
   if(HAS_AI) matchBtn=addBtn(mb,'Match the camera','primary',async()=>{matchBtn.disabled=true;await matchStill(say);matchBtn.disabled=false;});
   else claudeOnly(ms,'Matching the camera automatically');
@@ -2888,7 +2923,7 @@ function positionPresetList(btn){
   const bar=$('#presetBar'), list=$('#presetList');
   btn=btn||[...bar.children].find(b=>b.classList.contains('on')); if(!btn||list.style.display==='none') return;
   const x=bar.offsetLeft+btn.offsetLeft-bar.scrollLeft;
-  list.style.left=Math.max(10,Math.min(x,stage.clientWidth-list.offsetWidth-10))+'px';
+  list.style.left=Math.max(10+safeApp.l,Math.min(x,stage.clientWidth-list.offsetWidth-10-safeApp.r))+'px';
 }
 $('#presetBar').addEventListener('scroll',()=>positionPresetList());
 canvas.addEventListener('pointerdown',()=>{if(worldCat){worldCat=null;renderPalette();}});
@@ -3557,6 +3592,12 @@ function renderModelPanel(){
     addBtn(bt,'Place in world','primary',()=>placeModel(m));
     addBtn(bt,'Frame','',()=>frameModel());
     addBtn(bt,'All models','',()=>gotoTab('library'));
+    h3(s,'Scale the whole model');
+    const sc=document.createElement('div'); sc.className='chips'; s.appendChild(sc);
+    [[.5,'50%'],[.8,'80%'],[.9,'90%'],[1.1,'110%'],[1.25,'125%'],[2,'200%']].forEach(([k,l])=>{
+      const b=document.createElement('button'); b.className='chip'; b.textContent=l; b.addEventListener('click',()=>scaleModel(k)); sc.appendChild(b);
+    });
+    const sz=addNote(s,''); mSyncs.push(()=>{const b=new THREE.Box3().setFromObject(mGroup);if(b.isEmpty()){sz.textContent='';return;}const v=b.getSize(new THREE.Vector3());sz.textContent='Size now: '+v.x.toFixed(1)+' m wide, '+v.z.toFixed(1)+' m deep, '+v.y.toFixed(1)+' m tall.';});
   }
   s.appendChild(ai);
   /* AI (only where Claude can answer: inside a published Claude page) */
@@ -3653,6 +3694,12 @@ function renderModelPanel(){
     addNote(fs,'Drag the selected part in the picture to slide it around. Backspace deletes it.');
   }
   B.forEach(f=>f());
+}
+function scaleModel(k){
+  const m=curModel; if(!m) return;
+  m.parts.forEach(p=>{['x','y','z','w','h','d'].forEach(q=>{p[q]=+(p[q]*k).toFixed(3);});});
+  if(m.house){const H=m.house;H.w=+clamp(H.w*k,3,40).toFixed(2);H.d=+clamp(H.d*k,3,40).toFixed(2);H.floorH=+clamp(H.floorH*k,2.2,5).toFixed(2);}
+  modelChanged(); fitModelView(); renderModelPanel(); toast('Model scaled to '+Math.round(k*100)+'%');
 }
 function deletePart(){
   if(!curModel||selPart<0) return;
@@ -3928,6 +3975,12 @@ function applyUiMode(){
 }
 function cycleUi(){uiMode=uiMode?0:1;applyUiMode();if(uiMode)toast('Press the Show button, or H, to bring the controls back');}
 $('#uiBtn').addEventListener('click',cycleUi);
+/* Reference: pick a picture the first time, then switch it on and off over the camera frame */
+$('#refBtn').addEventListener('click',()=>{
+  if(!still.src){toast('Choose a reference picture: a film still, a photo or a drawing');pickStill();return;}
+  still.show=!still.show; applyStill(); refreshUI(); autosave();
+  if(still.show){if(view!=='camera')setView('camera');toast('Reference on. Change the picture or see-through amount in Camera tab > Match a film still');}
+});
 $('#stickBtn').addEventListener('click',()=>{fly.sticks=!fly.sticks;layoutOverlays();refreshUI();});
 window.addEventListener('keydown',e=>{
   const typing=/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)&&!/^(range|checkbox|radio|button)$/.test(e.target.type||'');
@@ -4633,6 +4686,13 @@ async function restoreAutosave(){
   asReady=true;
   try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist();}catch(err){}
 }
+window.__beforeUpdate=()=>autosave(true);
+$('#verTxt').textContent='Version '+APP_VERSION+(HAS_AI?' · Claude':' · Phone app');
+$('#verBtn').addEventListener('click',async()=>{
+  if(!window.__checkUpdate){toast(HAS_AI?'The Claude version is always the latest':'Updates are checked automatically when the app opens');return;}
+  toast('Checking for updates…');
+  try{const found=await window.__checkUpdate(); toast(found?'Updating to the newest version…':'You have the newest version');}catch(err){toast('Could not check right now. Try again with internet');}
+});
 function newProject(){
   frames=[]; locations=[]; renderLocations(); bv.sel=null;
   world.showRoom=false; world.groups=[]; rebuildWorld([newItem('room',0,0)]);
@@ -4664,9 +4724,20 @@ requestAnimationFrame(loop);
 })();
 </script>
 <script>
-/* offline support: keep the app on the phone after the first visit */
+/* offline support and updates: keep the app on the phone, and switch to a new version as soon as one is out */
 if('serviceWorker' in navigator&&/^https?:$/.test(location.protocol)){
-  window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+  const hadController=!!navigator.serviceWorker.controller; let reloading=false;
+  navigator.serviceWorker.addEventListener('controllerchange',()=>{
+    if(!hadController||reloading) return; reloading=true;
+    try{if(window.__beforeUpdate)window.__beforeUpdate();}catch(err){}
+    setTimeout(()=>location.reload(),600);
+  });
+  window.addEventListener('load',()=>{
+    navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(reg=>{
+      window.__checkUpdate=()=>reg.update().then(()=>!!(reg.installing||reg.waiting));
+      document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')reg.update().catch(()=>{});});
+    }).catch(()=>{});
+  });
 }
 </script>
 </body>
