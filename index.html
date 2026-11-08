@@ -89,7 +89,11 @@ html.compact .shot{grid-template-columns:104px minmax(0,1fr)}
 .tbtn.on{background:#f1f2ee;color:#15181a}
 .fitbtn{background:rgba(18,19,22,.78);color:#e8eae6;padding:10px 12px;border-radius:10px;font-weight:600;font-size:13px;display:none;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
 #pip{position:absolute;display:none;border:2px solid var(--tape);border-radius:3px;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.5)}
-#pip span{position:absolute;left:4px;top:3px;font:10px/1 ui-monospace,Menlo,Consolas,monospace;color:#fff;text-shadow:0 1px 2px #000}
+#pip{touch-action:none;user-select:none;-webkit-user-select:none}
+#pip.dragging{cursor:grabbing;opacity:.9}
+#pip .rz{position:absolute;right:-2px;top:-2px;width:30px;height:30px;cursor:nesw-resize;touch-action:none;
+  background:linear-gradient(225deg,var(--tape) 0 9px,transparent 9px),linear-gradient(225deg,transparent 0 13px,var(--tape) 13px 16px,transparent 16px)}
+#pip span{position:absolute;left:4px;top:3px;pointer-events:none;font:10px/1 ui-monospace,Menlo,Consolas,monospace;color:#fff;text-shadow:0 1px 2px #000}
 #hint{position:absolute;left:10px;top:calc(var(--tb,48px) + 56px);max-width:calc(100% - 214px);background:rgba(18,19,22,.82);color:#e8eae6;padding:8px 12px;border-radius:999px;
   font-size:12px;white-space:nowrap;opacity:0;transition:opacity .25s;pointer-events:none;max-width:94%;overflow:hidden;text-overflow:ellipsis}
 #hint.show{opacity:1}
@@ -383,7 +387,7 @@ html.compact #panel{right:calc(6px + var(--sr,0px));bottom:calc(6px + var(--sb,0
       <div class="tl"><i></i>Pyxis 6K</div>
       <div class="bl" id="meta"></div>
     </div>
-    <div id="pip"><span>Camera</span></div>
+    <div id="pip"><span>Camera</span><i class="rz" aria-label="Resize the camera window" title="Drag to resize"></i></div>
     <div id="sticks">
       <div class="mpad" id="mpadMove" aria-label="Move the camera">
         <button data-k="yaw-" aria-label="Turn left" title="Turn left">&#10226;</button><button data-k="fwd+" aria-label="Forward" title="Forward (W or Up arrow)">&#9650;</button><button data-k="yaw+" aria-label="Turn right" title="Turn right">&#10227;</button>
@@ -1721,9 +1725,16 @@ function frameRect(w,h){
   let fw,fh; if(aw/ah>ar){fh=ah;fw=ah*ar;}else{fw=aw;fh=aw/ar;}
   return {left:(w-po-fw)/2,top:(h-fh)/2,width:fw,height:fh};
 }
+/* the small camera window: dragged and resized by hand, remembered as fractions of the picture */
+let pipPos=null; try{pipPos=JSON.parse(localStorage.getItem('sbs-pip')||'null');}catch(err){}
 function pipRect(w,h){
-  const ar=ASPECTS[cam.aspect], pw=Math.min(w*.4,230), ph=pw/ar;
-  return {left:10+safeApp.l,top:h-10-safeApp.b-ph,width:pw,height:ph};
+  const ar=ASPECTS[cam.aspect];
+  let pw=pipPos&&pipPos.fw?pipPos.fw*w:Math.min(w*.4,230);
+  pw=clamp(pw,110,Math.max(110,Math.min(w*.85,(h-20)*ar)));
+  const ph=pw/ar;
+  let left=pipPos?pipPos.fx*w:10+safeApp.l, top=pipPos?pipPos.fy*h:h-10-safeApp.b-ph;
+  left=clamp(left,4,Math.max(4,w-pw-4)); top=clamp(top,4,Math.max(4,h-ph-4));
+  return {left,top,width:pw,height:ph};
 }
 const VIEW_HINT={
   director:'Drag to orbit. Drag a character or the yellow disc to move it.',
@@ -2345,7 +2356,38 @@ canvas.addEventListener('wheel',e=>{
   else if(isOrtho(view)){const s=ov[view];s.span=clamp(s.span*Math.exp(e.deltaY*.0012),1.5,250);}
   else dolly(-e.deltaY*.004);
 },{passive:false});
-$('#pip').addEventListener('click',()=>setView('camera'));
+/* drag the camera window to move it, drag its corner to resize it, tap it to open Camera view */
+(function(){
+  const el=$('#pip'); let st=null;
+  el.addEventListener('pointerdown',e=>{
+    e.stopPropagation(); e.preventDefault();
+    const w=stage.clientWidth,h=stage.clientHeight, r=pipRect(w,h), q=lp(e);
+    st={id:e.pointerId,x:q.x,y:q.y,r,resize:e.target.classList.contains('rz'),moved:false};
+    try{el.setPointerCapture(e.pointerId);}catch(err){}
+  });
+  el.addEventListener('pointermove',e=>{
+    if(!st||e.pointerId!==st.id) return;
+    const q=lp(e), dx=q.x-st.x, dy=q.y-st.y, w=stage.clientWidth,h=stage.clientHeight;
+    if(!st.moved&&Math.hypot(dx,dy)<6) return;
+    st.moved=true; el.classList.add('dragging');
+    if(st.resize){
+      /* the handle is the top-right corner: the bottom-left corner stays put */
+      const ar=ASPECTS[cam.aspect], pw=clamp(Math.max(st.r.width+dx,(st.r.height-dy)*ar),110,w*.85), ph=pw/ar;
+      pipPos={fx:st.r.left/w,fy:(st.r.top+st.r.height-ph)/h,fw:pw/w};
+    }else pipPos={fx:(st.r.left+dx)/w,fy:(st.r.top+dy)/h,fw:st.r.width/w};
+    layoutOverlays();
+  });
+  const end=e=>{
+    if(!st||e.pointerId!==st.id) return;
+    const tapped=!st.moved; st=null; el.classList.remove('dragging');
+    if(tapped){setView('camera');return;}
+    const r=pipRect(stage.clientWidth,stage.clientHeight);
+    pipPos={fx:r.left/stage.clientWidth,fy:r.top/stage.clientHeight,fw:r.width/stage.clientWidth};
+    try{localStorage.setItem('sbs-pip',JSON.stringify(pipPos));}catch(err){}
+  };
+  el.addEventListener('pointerup',end); el.addEventListener('pointercancel',end);
+  el.addEventListener('dblclick',e=>{e.stopPropagation();});
+})();
 $('#viewSeg').addEventListener('click',e=>{const b=e.target.closest('button');if(b)setView(b.dataset.v);});
 
 /* =====================================================================
