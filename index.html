@@ -26,7 +26,7 @@
   }
 }
 *{box-sizing:border-box}
-html,body{height:100%;margin:0;background:#15161a;color:var(--ink);
+html,body{height:100%;height:100lvh;margin:0;background:#15161a;color:var(--ink);
   font:14px/1.35 "Avenir Next","Segoe UI",system-ui,-apple-system,Roboto,sans-serif;
   -webkit-tap-highlight-color:transparent;overscroll-behavior:none;overflow:hidden}
 button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;padding:0}
@@ -270,6 +270,7 @@ details.folder[open] .fic{background:transparent;box-shadow:inset 0 0 0 2px var(
 #tabs .badge{background:var(--tape);color:var(--tape-ink);border-radius:999px;font-size:11px;font-weight:700;min-width:18px;height:18px;padding:0 5px;display:none;align-items:center;justify-content:center}
 #tabs .badge.has{display:inline-flex}
 #verLine{flex:none;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 14px;border-top:1px solid var(--line);font-size:11.5px;color:var(--ink-2)}
+#verInfo{flex:none;padding:0 14px 6px;font-size:10px;color:var(--ink-2);opacity:.8;font-variant-numeric:tabular-nums}
 #verLine button{font-size:11.5px;font-weight:700;color:var(--ink);padding:4px 8px;border-radius:7px;background:var(--panel-2)}
 #tabbody{flex:1;overflow:auto;padding:12px 16px 28px;-webkit-overflow-scrolling:touch}
 section{display:none}
@@ -346,11 +347,6 @@ details.more>*:last-child{margin-bottom:10px}
 #toast{position:absolute;left:50%;bottom:18px;transform:translate(-50%,20px);background:#15181a;color:#fff;padding:10px 16px;border-radius:999px;
   font-size:13px;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:40;white-space:nowrap}
 #toast.show{opacity:1;transform:translate(-50%,0)}
-#rotCard{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(440px,84%);z-index:60;display:none;gap:14px;align-items:flex-end;flex-direction:column;
-  background:rgba(18,19,22,.94);color:#eceeea;border:1px solid rgba(255,255,255,.18);border-radius:16px;padding:16px 18px;box-shadow:0 10px 30px rgba(0,0,0,.5)}
-#rotCard b{font-size:15px}
-#rotCard p{margin:6px 0 0;font-size:13px;line-height:1.45;color:#c9ccc8}
-#rotCard button{background:var(--tape);color:var(--tape-ink);font-weight:700;padding:9px 16px;border-radius:10px}
 #app:has(#stage.mode-model) #toast{bottom:76px}
 @media (prefers-reduced-motion:reduce){#hint,#toast{transition:none}}
 /* keep the buttons clear of the phone's own bars (status bar, notch, home bar); the picture stays full screen */
@@ -484,11 +480,6 @@ html.compact #panel{right:calc(6px + var(--sr,0px));bottom:calc(6px + var(--sb,0
     </div>
   </div>
   <div id="toast"></div>
-  <div id="rotCard" role="dialog" aria-label="Use the whole screen">
-    <div><b>Turn the phone itself sideways</b>
-    <p>Your phone is locked upright, so its clock and battery stay upright too. Swipe down from the top-right corner, tap the rotation lock icon to turn it off, then hold the phone sideways. The clock and battery move out of the way and the app gets the whole screen.</p></div>
-    <button id="rotOk" type="button">Got it</button>
-  </div>
 </div>
 <input type="file" id="fileIn" accept="application/json,.json" hidden>
 <input type="file" id="locIn" accept="application/json,.json" hidden>
@@ -502,7 +493,7 @@ const D2R=Math.PI/180, R2D=180/Math.PI;
 const $=(s,r=document)=>r.querySelector(s);
 /* Claude features (AI models, matching a still) work only inside the published Claude page */
 const HAS_AI=!!(window.claude&&typeof window.claude.use==='function');
-const APP_VERSION='16 (8 Nov 2026)';
+const APP_VERSION='17 (8 Nov 2026)';
 const clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
 const stage=$('#stage'), canvas=$('#gl');
 
@@ -523,14 +514,17 @@ function readSafe(){const c=getComputedStyle(safeProbe);safe.t=parseFloat(c.padd
 /* the app always uses the whole screen; only the buttons step in from the phone's bars (in app coordinates) */
 const safeApp={l:0,r:0,t:0,b:0};
 const isStandalone=()=>!!(navigator.standalone||matchMedia('(display-mode: standalone)').matches||matchMedia('(display-mode: fullscreen)').matches);
-let appIW=window.innerWidth;
+let appIW=window.innerWidth, layoutInfo='';
 function applyLayout(){
   readSafe();
   let iw=window.innerWidth, ih=window.innerHeight;
+  const de=document.documentElement, vv=window.visualViewport;
+  iw=Math.max(iw,de.clientWidth||0); ih=Math.max(ih,de.clientHeight||0);
   if(isStandalone()&&screen.width&&screen.height){
     const a=Math.min(screen.width,screen.height), b=Math.max(screen.width,screen.height);
     if(ih>=iw){iw=Math.max(iw,a);ih=Math.max(ih,b);}else{iw=Math.max(iw,b);ih=Math.max(ih,a);}
   }
+  layoutInfo='screen '+screen.width+'×'+screen.height+', window '+window.innerWidth+'×'+window.innerHeight+(vv?', visible '+Math.round(vv.width)+'×'+Math.round(vv.height):'')+', app '+iw+'×'+ih+', bars '+[safe.t,safe.r,safe.b,safe.l].map(Math.round).join('/')+(isStandalone()?', home screen':'');
   appIW=iw;
   const rot=forceLandscape&&ih>iw&&iw<900;
   const aw=rot?ih:iw, ah=rot?iw:ih, app=document.getElementById('app');
@@ -540,11 +534,9 @@ function applyLayout(){
   root.classList.toggle('compact',ah<=520);
   root.style.setProperty('--aw',aw+'px'); root.style.setProperty('--ah',ah+'px');
   /* turned a quarter: the phone's top bar lies along the app's left edge, the home bar along its right */
-  Object.assign(safeApp,rot?{l:safe.t,r:safe.b,t:safe.r,b:safe.l}:{l:safe.l,r:safe.r,t:safe.t,b:safe.b});
+  Object.assign(safeApp,rot?{l:safe.t+(safe.t>0||isStandalone()?30:0),r:safe.b,t:safe.r,b:safe.l}:{l:safe.l,r:safe.r,t:safe.t,b:safe.b});
   ['l','r','t','b'].forEach(k=>app.style.setProperty('--s'+k,safeApp[k]+'px'));
-  const card=document.getElementById('rotCard');
-  let dismissed=false; try{dismissed=localStorage.getItem('sbs-rotcard')==='1';}catch(err){}
-  if(card) card.style.display=rot&&isStandalone()&&!dismissed?'flex':'none';
+
 }
 applyLayout();
 window.addEventListener('resize',applyLayout);
@@ -3988,7 +3980,6 @@ function applyUiMode(){
 }
 function cycleUi(){uiMode=uiMode?0:1;applyUiMode();if(uiMode)toast('Press the Show button, or H, to bring the controls back');}
 $('#uiBtn').addEventListener('click',cycleUi);
-$('#rotOk').addEventListener('click',()=>{try{localStorage.setItem('sbs-rotcard','1');}catch(err){}$('#rotCard').style.display='none';});
 /* Reference: pick a picture the first time, then switch it on and off over the camera frame */
 $('#refBtn').addEventListener('click',()=>{
   if(!still.src){toast('Choose a reference picture: a film still, a photo or a drawing');pickStill();return;}
@@ -4702,6 +4693,7 @@ async function restoreAutosave(){
 }
 window.__beforeUpdate=()=>autosave(true);
 $('#verTxt').textContent='Version '+APP_VERSION+(HAS_AI?' · Claude':' · Phone app');
+{const d=document.createElement('div');d.id='verInfo';$('#verLine').after(d);const upd=()=>{d.textContent=layoutInfo;};upd();window.addEventListener('resize',()=>setTimeout(upd,60));}
 $('#verBtn').addEventListener('click',async()=>{
   if(!window.__checkUpdate){toast(HAS_AI?'The Claude version is always the latest':'Updates are checked automatically when the app opens');return;}
   toast('Checking for updates…');
