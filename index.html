@@ -213,14 +213,14 @@ html.compact #mTools button{padding:7px 10px;font-size:12px}
 .port{position:absolute;width:26px;height:26px;border-radius:50%;background:#2b2f35;border:3px solid var(--tape);touch-action:none}
 .port.in{left:-15px}
 .port.out{right:-15px;cursor:crosshair;background:var(--tape)}
-#boardBar{position:absolute;left:10px;top:10px;z-index:8;display:none;gap:6px;pointer-events:auto}
+#boardBar{position:absolute;left:10px;top:calc(var(--tb,48px) + 10px);flex-wrap:wrap;right:200px;z-index:8;display:none;gap:6px;pointer-events:auto}
 #stage.boardmode #boardBar{display:flex}
 #boardEmpty{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);color:#9aa09b;text-align:center;max-width:300px;pointer-events:none;display:none}
 #boardSheet{position:absolute;left:10px;right:10px;bottom:10px;z-index:8;display:none;gap:10px;align-items:flex-start;background:rgba(24,26,29,.94);color:#eceeea;border:1px solid #343840;border-radius:12px;padding:10px;max-width:640px;margin:0 auto}
 #boardSheet .col{flex:1;min-width:0}
 #boardSheet .ttl{font-weight:700;font-size:13px;margin-bottom:6px}
 #boardSheet textarea{width:100%;height:46px;resize:none;border-radius:8px;border:1px solid #3a3e45;background:#15161a;color:#eceeea;font:inherit;padding:8px}
-#boardSheet .acts{display:flex;flex-wrap:wrap;gap:6px;width:132px;flex:none}
+#boardSheet .acts{display:flex;flex-wrap:wrap;gap:6px;width:180px;flex:none}
 #boardSheet .acts button{padding:7px 9px;border-radius:8px;background:#2b2f35;font-size:12px;font-weight:600;flex:1 0 56px}
 #boardSheet .acts button.warn{color:#ff6b5e}
 html.compact #boardSheet textarea{height:38px}
@@ -389,6 +389,7 @@ details.more>*:last-child{margin-bottom:10px}
       <div id="boardEmpty">No shots yet. Use Add shot to save the current camera as a node.</div>
       <div id="boardBar">
         <button class="tbtn" id="bBack">Back to 3D</button>
+        <button class="tbtn" id="bPic">Add picture</button>
         <button class="tbtn" id="bArrange">Arrange</button>
         <button class="tbtn" id="bFit">Fit</button>
         <button class="tbtn" id="bMinus" aria-label="Zoom out">−</button>
@@ -398,7 +399,7 @@ details.more>*:last-child{margin-bottom:10px}
         <div class="col"><div class="ttl" id="shTitle"></div><textarea id="shNote" placeholder="Action, dialogue, notes"></textarea></div>
         <div class="acts">
           <button id="shEarlier">Earlier</button><button id="shLater">Later</button>
-          <button id="shOpen">Open</button><button id="shDraw">Draw</button><button id="shReplace">Replace</button><button id="shDelete" class="warn">Delete</button>
+          <button id="shOpen">Open</button><button id="shDraw">Draw</button><button id="shPic">Picture</button><button id="shReplace">Use 3D</button><button id="shDelete" class="warn">Delete</button>
         </div>
       </div>
     </div>
@@ -451,6 +452,7 @@ details.more>*:last-child{margin-bottom:10px}
 </div>
 <input type="file" id="fileIn" accept="application/json,.json" hidden>
 <input type="file" id="locIn" accept="application/json,.json" hidden>
+<input type="file" id="picIn" accept="image/*" multiple hidden>
 
 <script src="three.min.js"></script>
 <script>
@@ -3844,7 +3846,7 @@ function captureThumb(){
   out.getContext('2d').drawImage(canvas,r.left*pr,r.top*pr,r.width*pr,r.height*pr,0,0,out.width,out.height);
   return out.toDataURL('image/jpeg',.88);
 }
-function shotMeta(f){return f.lens+'mm, '+f.aspect;}
+function shotMeta(f){return f.pic?'Picture, '+f.aspect:f.lens+'mm, '+f.aspect;}
 function addShot(){
   const last=frames[frames.length-1], f={thumb:captureThumb(),note:'',state:snapshot(),lens:cam.lens,aspect:cam.aspect};
   if(last&&typeof last.nx==='number'){f.nx=last.nx+BW+GAPX;f.ny=last.ny;}
@@ -3858,6 +3860,7 @@ const shotsSec=sec('shots'), shotList=document.createElement('div');
   addToggle(shotsSec,'Sketch on new shots',()=>sketchOnAdd,v=>{sketchOnAdd=v;});
   const bt=document.createElement('div'); bt.className='btns'; bt.style.marginTop='10px'; shotsSec.appendChild(bt);
   addBtn(bt,'Add shot','primary',addShot);
+  addBtn(bt,'Add picture','',()=>pickPictures(null));
   addBtn(bt,'Export sheet (PNG)','',exportSheet);
   addBtn(bt,'Save project','',saveProject);
   addBtn(bt,'Open project','',()=>$('#fileIn').click());
@@ -3876,7 +3879,7 @@ function renderShotList(){
     '<div class="shot" data-i="'+i+'"><div><img data-a="go" alt="Shot '+(i+1)+'" src="'+shownOf(f)+'"></div><div>'+
     '<div class="hd"><b>Shot '+(i+1)+'</b><span>'+shotMeta(f)+'</span></div>'+
     '<textarea class="field" placeholder="Action, dialogue, notes" data-a="note">'+f.note.replace(/&/g,'&amp;').replace(/</g,'&lt;')+'</textarea>'+
-    '<div class="acts"><button data-a="go">Open</button><button data-a="draw">Draw</button><button data-a="replace">Replace</button>'+
+    '<div class="acts"><button data-a="go">Open</button><button data-a="draw">Draw</button><button data-a="pic">Picture</button><button data-a="replace">Use 3D</button>'+
     '<button data-a="up" aria-label="Move up">Up</button><button data-a="down" aria-label="Move down">Down</button><button data-a="del">Delete</button></div>'+
     '</div></div>').join('');
 }
@@ -3890,7 +3893,8 @@ shotList.addEventListener('click',e=>{
   const i=+e.target.closest('.shot').dataset.i, f=frames[i];
   if(a==='go'){applyState(f.state);setView('camera');}
   else if(a==='draw') openInk(f);
-  else if(a==='replace'){f.thumb=captureThumb();f.state=snapshot();f.lens=cam.lens;f.aspect=cam.aspect;rebuildShown(f);toast('Shot '+(i+1)+' replaced');}
+  else if(a==='pic') pickPictures(f);
+  else if(a==='replace'){f.thumb=captureThumb();f.state=snapshot();f.lens=cam.lens;f.aspect=cam.aspect;delete f.pic;rebuildShown(f);toast('Shot '+(i+1)+' now shows the 3D camera');}
   else if(a==='up'&&i>0){[frames[i-1],frames[i]]=[frames[i],frames[i-1]];renderShots();}
   else if(a==='down'&&i<frames.length-1){[frames[i+1],frames[i]]=[frames[i],frames[i+1]];renderShots();}
   else if(a==='del'){frames.splice(i,1);renderShots();}
@@ -3938,11 +3942,12 @@ function drawWires(tmp){
   bWires.innerHTML=h;
 }
 function fitBoard(){
-  if(!frames.length){bv.px=30;bv.py=70;bv.z=1;applyBoardView();return;}
+  const tb=$('.topbar'), top0=tb.offsetTop+tb.offsetHeight+64;
+  if(!frames.length){bv.px=30;bv.py=top0;bv.z=1;applyBoardView();return;}
   ensureLayout();
   const x0=Math.min(...frames.map(f=>f.nx)), x1=Math.max(...frames.map(f=>f.nx+BW));
   const y0=Math.min(...frames.map(f=>f.ny)), y1=Math.max(...frames.map(f=>f.ny+nodeH(f)));
-  const w=stage.clientWidth, h=stage.clientHeight, topM=64, botM=bv.sel?120:30;
+  const w=stage.clientWidth, h=stage.clientHeight, topM=top0, botM=bv.sel?140:30;
   const z=clamp(Math.min((w-60)/(x1-x0),(h-topM-botM)/(y1-y0)),.25,1.1);
   bv.z=z; bv.px=(w-(x1-x0)*z)/2-x0*z; bv.py=topM+((h-topM-botM)-(y1-y0)*z)/2-y0*z;
   applyBoardView();
@@ -4042,7 +4047,49 @@ $('#shDraw').addEventListener('click',()=>{if(bv.sel)openInk(bv.sel);});
 $('#shOpen').addEventListener('click',()=>{const f=bv.sel;if(!f)return;applyState(f.state);setShotMode('list');setView('camera');});
 $('#shReplace').addEventListener('click',()=>{
   const f=bv.sel; if(!f) return;
-  f.thumb=captureThumb(); f.state=snapshot(); f.lens=cam.lens; f.aspect=cam.aspect; rebuildShown(f); toast('Shot replaced');
+  f.thumb=captureThumb(); f.state=snapshot(); f.lens=cam.lens; f.aspect=cam.aspect; delete f.pic; rebuildShown(f); toast('Shot now shows the 3D camera');
+});
+/* ---------- Pictures on shots: import any image as a shot, or onto one ---------- */
+async function pictureToShot(file){
+  const pic=await loadPicture(file,1800), asp=nearestAspect(pic.w/pic.h), r=ASPECTS[asp];
+  const im=await new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=rej;i.src=pic.dataURL;});
+  let sw=im.naturalWidth, sh=im.naturalHeight; if(sw/sh>r) sw=sh*r; else sh=sw/r;      /* trim to the nearest frame shape */
+  const cv=document.createElement('canvas'); cv.width=900; cv.height=Math.round(900/r);
+  cv.getContext('2d').drawImage(im,(im.naturalWidth-sw)/2,(im.naturalHeight-sh)/2,sw,sh,0,0,cv.width,cv.height);
+  return {thumb:cv.toDataURL('image/jpeg',.88),aspect:asp};
+}
+async function addPictures(files,target){
+  const list=[...(files||[])].filter(f=>/^image\//.test(f.type));
+  if(!list.length){toast('Choose a picture file');return;}
+  try{
+    if(target){
+      const p=await pictureToShot(list[0]); target.thumb=p.thumb; target.aspect=p.aspect; target.pic=true;
+      rebuildShown(target); renderShots(); toast('Picture added to shot '+(frames.indexOf(target)+1)); return;
+    }
+    toast(list.length>1?'Adding '+list.length+' pictures…':'Adding picture…');
+    for(const file of list){
+      const p=await pictureToShot(file), last=frames[frames.length-1];
+      const f={thumb:p.thumb,note:'',state:snapshot(),lens:cam.lens,aspect:p.aspect,pic:true};
+      if(last&&typeof last.nx==='number'){f.nx=last.nx+BW+GAPX;f.ny=last.ny;}
+      frames.push(f); bv.sel=f;
+    }
+    renderShots(); if(shotMode==='nodes') fitBoard(); toast(list.length>1?list.length+' pictures added as shots':'Picture added as shot '+frames.length);
+  }catch(err){toast('That file could not be opened as a picture');}
+}
+let picTarget=null;
+function pickPictures(target){picTarget=target;const i=$('#picIn');i.multiple=!target;i.click();}
+$('#picIn').addEventListener('change',e=>{const fs=e.target.files;addPictures(fs,picTarget);e.target.value='';picTarget=null;});
+$('#bPic').addEventListener('click',()=>pickPictures(null));
+$('#shPic').addEventListener('click',()=>{if(bv.sel)pickPictures(bv.sel);});
+/* drag image files from the computer onto the board or the list: onto a shot replaces its picture */
+function frameAt(el){
+  const n=el.closest&&el.closest('.node'); if(n){for(const [f,e] of bEls) if(e===n) return f;}
+  const sh=el.closest&&el.closest('.shot'); if(sh) return frames[+sh.dataset.i]||null;
+  return null;
+}
+[$('#board'),shotList].forEach(z=>{
+  z.addEventListener('dragover',e=>{if([...(e.dataTransfer.items||[])].some(i=>i.kind==='file')){e.preventDefault();e.dataTransfer.dropEffect='copy';}});
+  z.addEventListener('drop',e=>{if(!e.dataTransfer.files.length)return;e.preventDefault();addPictures(e.dataTransfer.files,frameAt(e.target));});
 });
 $('#shDelete').addEventListener('click',()=>{
   const f=bv.sel; if(!f) return;
