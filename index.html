@@ -305,6 +305,7 @@ textarea.field{resize:none;height:56px}
 .toggle{display:flex;align-items:center;justify-content:space-between;padding:8px 0;font-size:14px;gap:12px}
 .toggle input{width:44px;height:26px;accent-color:var(--tape);flex:none}
 .note{color:var(--ink-2);font-size:12.5px;margin:6px 0}
+.note:not(.keep){display:none}
 .disabled{opacity:.38;pointer-events:none}
 .readout{background:var(--panel-2);border-radius:10px;padding:10px 12px;font-size:13px;font-variant-numeric:tabular-nums;line-height:1.5}
 .readout b{font-weight:700}
@@ -345,6 +346,11 @@ details.more>*:last-child{margin-bottom:10px}
 #toast{position:absolute;left:50%;bottom:18px;transform:translate(-50%,20px);background:#15181a;color:#fff;padding:10px 16px;border-radius:999px;
   font-size:13px;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:40;white-space:nowrap}
 #toast.show{opacity:1;transform:translate(-50%,0)}
+#rotCard{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(440px,84%);z-index:60;display:none;gap:14px;align-items:flex-end;flex-direction:column;
+  background:rgba(18,19,22,.94);color:#eceeea;border:1px solid rgba(255,255,255,.18);border-radius:16px;padding:16px 18px;box-shadow:0 10px 30px rgba(0,0,0,.5)}
+#rotCard b{font-size:15px}
+#rotCard p{margin:6px 0 0;font-size:13px;line-height:1.45;color:#c9ccc8}
+#rotCard button{background:var(--tape);color:var(--tape-ink);font-weight:700;padding:9px 16px;border-radius:10px}
 #app:has(#stage.mode-model) #toast{bottom:76px}
 @media (prefers-reduced-motion:reduce){#hint,#toast{transition:none}}
 /* keep the buttons clear of the phone's own bars (status bar, notch, home bar); the picture stays full screen */
@@ -478,6 +484,11 @@ html.compact #panel{right:calc(6px + var(--sr,0px));bottom:calc(6px + var(--sb,0
     </div>
   </div>
   <div id="toast"></div>
+  <div id="rotCard" role="dialog" aria-label="Use the whole screen">
+    <div><b>Turn the phone itself sideways</b>
+    <p>Your phone is locked upright, so its clock and battery stay upright too. Swipe down from the top-right corner, tap the rotation lock icon to turn it off, then hold the phone sideways. The clock and battery move out of the way and the app gets the whole screen.</p></div>
+    <button id="rotOk" type="button">Got it</button>
+  </div>
 </div>
 <input type="file" id="fileIn" accept="application/json,.json" hidden>
 <input type="file" id="locIn" accept="application/json,.json" hidden>
@@ -491,7 +502,7 @@ const D2R=Math.PI/180, R2D=180/Math.PI;
 const $=(s,r=document)=>r.querySelector(s);
 /* Claude features (AI models, matching a still) work only inside the published Claude page */
 const HAS_AI=!!(window.claude&&typeof window.claude.use==='function');
-const APP_VERSION='15 (8 Nov 2026)';
+const APP_VERSION='16 (8 Nov 2026)';
 const clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
 const stage=$('#stage'), canvas=$('#gl');
 
@@ -511,29 +522,35 @@ const safe={t:0,r:0,b:0,l:0};
 function readSafe(){const c=getComputedStyle(safeProbe);safe.t=parseFloat(c.paddingTop)||0;safe.r=parseFloat(c.paddingRight)||0;safe.b=parseFloat(c.paddingBottom)||0;safe.l=parseFloat(c.paddingLeft)||0;}
 /* the app always uses the whole screen; only the buttons step in from the phone's bars (in app coordinates) */
 const safeApp={l:0,r:0,t:0,b:0};
-let rotTipShown=false;
+const isStandalone=()=>!!(navigator.standalone||matchMedia('(display-mode: standalone)').matches||matchMedia('(display-mode: fullscreen)').matches);
+let appIW=window.innerWidth;
 function applyLayout(){
   readSafe();
-  const iw=window.innerWidth, ih=window.innerHeight;
+  let iw=window.innerWidth, ih=window.innerHeight;
+  if(isStandalone()&&screen.width&&screen.height){
+    const a=Math.min(screen.width,screen.height), b=Math.max(screen.width,screen.height);
+    if(ih>=iw){iw=Math.max(iw,a);ih=Math.max(ih,b);}else{iw=Math.max(iw,b);ih=Math.max(ih,a);}
+  }
+  appIW=iw;
   const rot=forceLandscape&&ih>iw&&iw<900;
   const aw=rot?ih:iw, ah=rot?iw:ih, app=document.getElementById('app');
-  ['left','top','width','height','transform'].forEach(k=>app.style.removeProperty(k));
+  ['left','top','transform'].forEach(k=>app.style.removeProperty(k));
+  app.style.width=aw+'px'; app.style.height=ah+'px';
   root.classList.toggle('rot',rot);
   root.classList.toggle('compact',ah<=520);
   root.style.setProperty('--aw',aw+'px'); root.style.setProperty('--ah',ah+'px');
   /* turned a quarter: the phone's top bar lies along the app's left edge, the home bar along its right */
   Object.assign(safeApp,rot?{l:safe.t,r:safe.b,t:safe.r,b:safe.l}:{l:safe.l,r:safe.r,t:safe.t,b:safe.b});
   ['l','r','t','b'].forEach(k=>app.style.setProperty('--s'+k,safeApp[k]+'px'));
-  if(rot&&!rotTipShown&&(navigator.standalone||matchMedia('(display-mode: standalone)').matches||matchMedia('(display-mode: fullscreen)').matches)){
-    rotTipShown=true;
-    setTimeout(()=>{try{toast('Tip: turn off rotation lock and turn your phone sideways for the full screen');}catch(err){}},1500);
-  }
+  const card=document.getElementById('rotCard');
+  let dismissed=false; try{dismissed=localStorage.getItem('sbs-rotcard')==='1';}catch(err){}
+  if(card) card.style.display=rot&&isStandalone()&&!dismissed?'flex':'none';
 }
 applyLayout();
 window.addEventListener('resize',applyLayout);
 window.addEventListener('orientationchange',applyLayout);
 /* screen coordinates -> app coordinates (undoes the quarter turn when rotated) */
-function toApp(cx,cy){return root.classList.contains('rot')?{x:cy,y:window.innerWidth-cx}:{x:cx,y:cy};}
+function toApp(cx,cy){return root.classList.contains('rot')?{x:cy,y:appIW-cx}:{x:cx,y:cy};}
 function lp(e){const a=toApp(e.clientX,e.clientY);return {x:a.x-stage.offsetLeft,y:a.y-stage.offsetTop};}
 
 /* =====================================================================
@@ -1751,7 +1768,6 @@ function setView(v){
   if(isOrtho(v)&&!ov[v].init) fitOrtho(v);
   [...$('#viewSeg').children].forEach(b=>b.classList.toggle('on',b.dataset.v===v));
   layoutOverlays();
-  hint(VIEW_HINT[v]);
 }
 let hintT=null;
 function hint(t){const el=$('#hint');el.textContent=t;el.classList.add('show');clearTimeout(hintT);hintT=setTimeout(()=>el.classList.remove('show'),4500);}
@@ -2453,7 +2469,6 @@ function setAppMode(m,init){
     if(document.pointerLockElement){try{document.exitPointerLock();}catch(err){}}
     setView('director'); if(!studio(prev)) swapOrbit(true); mGroup.visible=true; setPanel(true);
     if(!curModel&&models.length){curModel=models[models.length-1];rebuildModelView();renderModelPanel();renderLibrary();frameModel();}
-    hint('Press a part and drag to move it. Drag empty space to orbit. Use Top, Front and Side for exact placing.');
   }else if(m==='direct'){
     if(placing) setPlacing(null);
     if(worldCat){worldCat=null;renderPalette();}
@@ -2832,7 +2847,7 @@ async function matchStill(say){
   const fin=document.createElement('input'); fin.type='file'; fin.accept='image/*'; fin.hidden=true; ms.appendChild(fin);
   const prev=document.createElement('img'); prev.alt='Your film still'; prev.style.cssText='width:100%;border-radius:8px;display:none;margin:6px 0;background:#000'; ms.appendChild(prev);
   const mb=document.createElement('div'); mb.className='btns'; ms.appendChild(mb);
-  const st=addNote(ms,''); st.setAttribute('aria-live','polite');
+  const st=addNote(ms,''); st.classList.add('keep'); st.setAttribute('aria-live','polite');
   const say=t=>{st.textContent=t;};
   addBtn(mb,'Choose a still…','',()=>fin.click());
   pickStill=()=>fin.click();
@@ -2892,7 +2907,7 @@ function setPlacing(type){
     const ch=type[0]==='@';
     $('#placeTxt').textContent=ch?(type==='@add'?'Tap the map to add a character':'Tap the map to move '+(chars[sel]?chars[sel].name:'a character')):'Placing '+CATALOG[type].label;
     if(view!=='top') setView('top');
-    hint(ch?'Tap to place. Press, drag, then lift to choose which way they face. Two fingers pan and zoom.':CATALOG[type].line?'Drag on the map to draw it. Use two fingers to pan and zoom.':'Tap the map to place it. Drag to pan, pinch to zoom.');
+    hint(ch?'Tap to place':CATALOG[type].line?'Drag to draw':'Tap to place');
   }
   renderPalette();
 }
@@ -3111,7 +3126,7 @@ function renderItemEditor(){
     addToggle(bs,'Start from an empty world',()=>fresh,v=>{fresh=v;});
     const bin=document.createElement('input'); bin.type='file'; bin.accept='image/*'; bin.hidden=true; bs.appendChild(bin);
     const bb=document.createElement('div'); bb.className='btns'; bs.appendChild(bb);
-    const bst=addNote(bs,''); bst.setAttribute('aria-live','polite');
+    const bst=addNote(bs,''); bst.classList.add('keep'); bst.setAttribute('aria-live','polite');
     const go=addBtn(bb,'Choose a picture and build','primary',()=>bin.click());
     bin.addEventListener('change',async()=>{const f=bin.files[0];bin.value='';if(!f)return;go.disabled=true;await buildSceneFromPicture(f,fresh,t=>{bst.textContent=t;});go.disabled=false;});
   }else claudeOnly(bs,'Building a scene from a picture');
@@ -3421,7 +3436,6 @@ function setModelView(v){
   mView=v;
   [...$('#mViewSeg').children].forEach(b=>b.classList.toggle('on',b.dataset.mv===v));
   if(v!=='3d') fitModelOrtho();
-  hint(v==='3d'?'Drag a part to slide it. Drag empty space to orbit.':'Drag a part to move it, drag the yellow squares to resize. Drag empty space to pan.');
 }
 function fitModelOrtho(){
   const b=new THREE.Box3().setFromObject(mGroup), s=mOv[mView]; if(!s) return;
@@ -3597,7 +3611,7 @@ function renderModelPanel(){
     [[.5,'50%'],[.8,'80%'],[.9,'90%'],[1.1,'110%'],[1.25,'125%'],[2,'200%']].forEach(([k,l])=>{
       const b=document.createElement('button'); b.className='chip'; b.textContent=l; b.addEventListener('click',()=>scaleModel(k)); sc.appendChild(b);
     });
-    const sz=addNote(s,''); mSyncs.push(()=>{const b=new THREE.Box3().setFromObject(mGroup);if(b.isEmpty()){sz.textContent='';return;}const v=b.getSize(new THREE.Vector3());sz.textContent='Size now: '+v.x.toFixed(1)+' m wide, '+v.z.toFixed(1)+' m deep, '+v.y.toFixed(1)+' m tall.';});
+    const sz=addNote(s,''); sz.classList.add('keep'); mSyncs.push(()=>{const b=new THREE.Box3().setFromObject(mGroup);if(b.isEmpty()){sz.textContent='';return;}const v=b.getSize(new THREE.Vector3());sz.textContent='Size now: '+v.x.toFixed(1)+' m wide, '+v.z.toFixed(1)+' m deep, '+v.y.toFixed(1)+' m tall.';});
   }
   s.appendChild(ai);
   /* AI (only where Claude can answer: inside a published Claude page) */
@@ -3614,7 +3628,7 @@ function renderModelPanel(){
   if(aiPhoto) addBtn(ph,'Remove','warn',()=>{aiPhoto=null;renderModelPanel();});
   pin.addEventListener('change',async()=>{const f=pin.files[0];pin.value='';if(!f)return;aiSay('Preparing the photo…');aiLoading=true;aiBusy();try{aiPhoto=(await loadPicture(f,1280)).dataURL;aiMsg='Photo attached. Add a few words if you like (e.g. "the house on the left"), then tap Create new.';}catch(err){aiMsg='That file could not be opened as a picture.';}aiLoading=false;renderModelPanel();});
   const ab=document.createElement('div'); ab.className='btns'; fa.appendChild(ab);
-  const st=addNote(fa,aiMsg||'Claude designs it from simple shapes. Every part stays editable afterwards.'); st.id='aiStatus'; st.setAttribute('aria-live','polite');
+  const st=addNote(fa,aiMsg||'Claude designs it from simple shapes. Every part stays editable afterwards.'); st.id='aiStatus'; st.classList.add('keep'); st.setAttribute('aria-live','polite');
   addBtn(ab,'Create new','primary',()=>aiRun(ta.value,false)).id='aiNew';
   if(m) addBtn(ab,'Change this model','',()=>aiRun(ta.value,true)).id='aiChg';
   addBtn(ab,'Stop','warn',()=>{if(aiCtl)aiCtl.abort();}).id='aiStop';
@@ -3811,7 +3825,6 @@ function enterPose(c){
   c.label.visible=false;
   orbit.target.set(0,c.pose==='lay'?.4:c.pose==='sit'?.8:1,0); orbit.dist=c.pose==='lay'?4.2:4.6; orbit.az=20*D2R; orbit.pol=78*D2R;
   setPanel(true); renderPosePanel();
-  hint('Drag a yellow dot to bend that joint. Drag anywhere else to orbit around them.');
   if(navigator.vibrate) try{navigator.vibrate(12);}catch(err){}
 }
 function exitPose(silent){
@@ -3975,6 +3988,7 @@ function applyUiMode(){
 }
 function cycleUi(){uiMode=uiMode?0:1;applyUiMode();if(uiMode)toast('Press the Show button, or H, to bring the controls back');}
 $('#uiBtn').addEventListener('click',cycleUi);
+$('#rotOk').addEventListener('click',()=>{try{localStorage.setItem('sbs-rotcard','1');}catch(err){}$('#rotCard').style.display='none';});
 /* Reference: pick a picture the first time, then switch it on and off over the camera frame */
 $('#refBtn').addEventListener('click',()=>{
   if(!still.src){toast('Choose a reference picture: a film still, a photo or a drawing');pickStill();return;}
