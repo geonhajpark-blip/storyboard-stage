@@ -26,7 +26,7 @@
   }
 }
 *{box-sizing:border-box}
-html,body{height:100%;margin:0;background:var(--panel);color:var(--ink);
+html,body{height:100%;margin:0;background:#15161a;color:var(--ink);
   font:14px/1.35 "Avenir Next","Segoe UI",system-ui,-apple-system,Roboto,sans-serif;
   -webkit-tap-highlight-color:transparent;overscroll-behavior:none;overflow:hidden}
 button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;padding:0}
@@ -473,10 +473,26 @@ const C=hex=>new THREE.Color(hex).convertSRGBToLinear();
 /* ---------- landscape layout ---------- */
 const root=document.documentElement;
 let forceLandscape=true;
+/* the phone's own bars (time, battery, notch, home bar): keep the app out from under them */
+const safeProbe=document.createElement('div');
+safeProbe.style.cssText='position:fixed;left:0;top:0;width:0;height:0;visibility:hidden;pointer-events:none;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)';
+document.body.appendChild(safeProbe);
+const safe={t:0,r:0,b:0,l:0};
+function readSafe(){const c=getComputedStyle(safeProbe);safe.t=parseFloat(c.paddingTop)||0;safe.r=parseFloat(c.paddingRight)||0;safe.b=parseFloat(c.paddingBottom)||0;safe.l=parseFloat(c.paddingLeft)||0;}
 function applyLayout(){
+  readSafe();
   const iw=window.innerWidth, ih=window.innerHeight;
   const rot=forceLandscape&&ih>iw&&iw<900;
-  const aw=rot?ih:iw, ah=rot?iw:ih;
+  const app=document.getElementById('app');
+  let aw,ah;
+  if(rot){
+    /* turned a quarter: the phone's top bar becomes the app's left edge, the home bar its right edge */
+    aw=ih-safe.t-Math.min(safe.b,24); ah=iw-safe.l-safe.r;
+    Object.assign(app.style,{left:safe.l+'px',top:'0px',width:aw+'px',height:ah+'px',transform:'translateY('+safe.t+'px) rotate(90deg) translateY(-100%)'});
+  }else{
+    aw=iw-safe.l-safe.r; ah=ih-safe.t-Math.min(safe.b,20);
+    Object.assign(app.style,{left:safe.l+'px',top:safe.t+'px',width:aw+'px',height:ah+'px',transform:'none'});
+  }
   root.classList.toggle('rot',rot);
   root.classList.toggle('compact',ah<=520);
   root.style.setProperty('--aw',aw+'px'); root.style.setProperty('--ah',ah+'px');
@@ -485,7 +501,7 @@ applyLayout();
 window.addEventListener('resize',applyLayout);
 window.addEventListener('orientationchange',applyLayout);
 /* screen coordinates -> app coordinates (undoes the quarter turn when rotated) */
-function toApp(cx,cy){return root.classList.contains('rot')?{x:cy,y:window.innerWidth-cx}:{x:cx,y:cy};}
+function toApp(cx,cy){return root.classList.contains('rot')?{x:cy-safe.t,y:window.innerWidth-safe.r-cx}:{x:cx-safe.l,y:cy-safe.t};}
 function lp(e){const a=toApp(e.clientX,e.clientY);return {x:a.x-stage.offsetLeft,y:a.y-stage.offsetTop};}
 
 /* =====================================================================
@@ -2634,6 +2650,117 @@ const STILL_PROMPT='You are a cinematographer helping a previs app recreate a sh
 '- shot is one of: extreme wide, wide, full, medium, medium close-up, close-up, extreme close-up.\n'+
 '- subjects: the people in the frame, nearest first, at most 4. x is the horizontal centre of the person in the frame (0 left edge, 1 right edge). distance_m is how far they are from the camera, assuming people are about 1.75 m tall. pose is stand, sit or lay. facing is one of: camera, away, left, right, three-quarter left, three-quarter right (as seen in the frame).\n'+
 '- If there are no people, use an empty list. Give your best estimate even when unsure.';
+/* ---------- Build a whole scene from a picture ---------- */
+const CLAUDE_URL='https://claude.ai/artifact/Ch9v82QFnCaBG2wqZ9BBsg';
+function claudeOnly(parent,what){
+  addNote(parent,what+' needs Claude, so it works in the Claude version of this app (your work there is saved separately).');
+  const b=document.createElement('div'); b.className='btns'; parent.appendChild(b);
+  addBtn(b,'Open the Claude version','primary',()=>{window.open(CLAUDE_URL,'_blank','noopener');});
+}
+const SCENE_TYPES={
+  line:['road','sidewalk','wall','fence'],
+  building:['house','apartment','shop','tower','warehouse'],
+  area:['room','block','pavement','crosswalk'],
+  prop:['tree','pine','bush','rock','car','van','bench','lamp','traffic','busstop','sign','hydrant','bin','cone']
+};
+const SCENE_PROMPT='You are a production designer and cinematographer helping a previs app rebuild the attached picture as a simple 3D set.\n'+
+'Reply with only one JSON object:\n'+
+'{"setting": "2 to 4 words", "aspect": "16:9", "focal_mm": 35, "camera_height_m": 1.6, "tilt_deg": 0, "horizon_tilt_deg": 0, "shot": "wide",\n'+
+' "subjects": [{"x": 0.5, "distance_m": 6, "pose": "stand", "facing": "camera"}],\n'+
+' "objects": [{"type": "house", "at": [-6, 18], "turn_deg": 0, "w": 9, "d": 10, "h": 7, "roof": "gable", "color": "#c97b5a"},\n'+
+'             {"type": "road", "from": [-30, 8], "to": [30, 8], "w": 7, "sidewalks": true},\n'+
+'             {"type": "tree", "at": [5, 12], "size": 1.2}]}\n'+
+'Coordinates are metres on the ground relative to the camera: [right, forward]. right is negative to the left of the camera; forward is straight ahead along the ground.\n'+
+'turn_deg: 0 means the object\'s front faces the camera; 90 means its front faces the right of the frame.\n'+
+'Object types:\n'+
+'- lines (use "from" and "to"): road (w = width incl. lanes, 3-24, "sidewalks": true/false), sidewalk (w 1-10), wall (h height), fence (h height)\n'+
+'- buildings (use "at", "turn_deg", w, d, h in metres, "roof": "flat" or "gable", "color"): house, apartment, shop, tower, warehouse\n'+
+'- areas (use "at", "turn_deg", w, d): room (an interior with walls; add h; put the camera inside it for indoor shots), block (a plain box; add h and color), pavement, crosswalk\n'+
+'- props (use "at", "turn_deg", "size" 0.5-3 where 1 is normal, optional "color"): tree, pine, bush, rock, car, van, bench, lamp (street lamp), traffic (traffic light), busstop, sign (stop sign), hydrant, bin, cone\n'+
+'Other fields mean the same as for matching a camera: focal_mm is the full-frame equivalent; tilt_deg positive looks up; horizon_tilt_deg positive when the horizon rises to the right; subjects are the people (at most 4, nearest first), x is their horizontal centre in the frame from 0 (left) to 1 (right), distance_m assumes people are about 1.75 m tall, pose is stand/sit/lay, facing is camera/away/left/right/three-quarter left/three-quarter right.\n'+
+'Include the main visible things and anything that shapes the space (up to 60 objects), at believable real-world sizes and distances. Use the closest type when nothing matches exactly.';
+/* camera and people from a guess (shared by "match a still" and "build a scene") */
+function applyShotGuess(r){
+  const n=(v,a,b,d)=>{v=Number(v);return isFinite(v)?clamp(v,a,b):d;};
+  cam.aspect=ASPECTS[r.aspect]?r.aspect:nearestAspect(still.w/Math.max(1,still.h)||16/9);
+  cam.lens=nearestLens(n(r.focal_mm,8,400,50));
+  cam.y=n(r.camera_height_m,.1,CAM_MAX_H,1.6); cam.pitch=n(r.tilt_deg,-89,89,0); cam.roll=-n(r.horizon_tilt_deg,-45,45,0);
+  updateShotCam();
+  const subs=(Array.isArray(r.subjects)?r.subjects:[]).slice(0,MAX_CHARS), hf=optics().hf, y=cam.yaw*D2R;
+  const F=[-Math.sin(y),-Math.cos(y)], Rt=[Math.cos(y),-Math.sin(y)];
+  subs.forEach((sj,i)=>{
+    let c=chars[i]||addChar({}); if(!c) return;
+    const d=n(sj.distance_m,.5,120,4), a=(n(sj.x,0,1,.5)-.5)*hf*D2R, gd=Math.max(.3,Math.sqrt(Math.max(0,d*d-Math.pow(cam.y-1.2,2))));
+    c.x=clamp(cam.x+F[0]*gd*Math.cos(a)+Rt[0]*gd*Math.sin(a),-WORLD_HALF,WORLD_HALF);
+    c.z=clamp(cam.z+F[1]*gd*Math.cos(a)+Rt[1]*gd*Math.sin(a),-WORLD_HALF,WORLD_HALF);
+    const tc=[cam.x-c.x,cam.z-c.z], L=Math.hypot(tc[0],tc[1])||1; tc[0]/=L; tc[1]/=L;
+    const f=String(sj.facing||'camera').toLowerCase();
+    const dir=f==='away'?[-tc[0],-tc[1]]:f==='left'?[-Rt[0],-Rt[1]]:f==='right'?Rt:f.includes('left')?[tc[0]-Rt[0],tc[1]-Rt[1]]:f.includes('right')?[tc[0]+Rt[0],tc[1]+Rt[1]]:tc;
+    c.rot=Math.atan2(dir[0],dir[1])*R2D;
+    if(POSES[sj.pose]) c.pose=sj.pose;
+    placeChar(c);
+  });
+  /* characters the picture doesn't need step out of shot, behind the camera */
+  chars.slice(subs.length).forEach((c,k)=>{c.x=clamp(cam.x-F[0]*2.5+Rt[0]*(k-1)*1.2,-WORLD_HALF,WORLD_HALF);c.z=clamp(cam.z-F[1]*2.5+Rt[1]*(k-1)*1.2,-WORLD_HALF,WORLD_HALF);placeChar(c);});
+  renderChips();
+  const lensNote=Math.round(n(r.focal_mm,8,400,50))!==cam.lens?' (closest to the '+Math.round(r.focal_mm)+' mm it guessed)':'';
+  return {people:subs.length,msg:(r.shot||'shot')+', '+cam.lens+' mm'+lensNote+', camera '+cam.y.toFixed(1)+' m high, tilt '+Math.round(cam.pitch)+'°'};
+}
+function buildSceneObjects(list){
+  const y=cam.yaw*D2R, F=[-Math.sin(y),-Math.cos(y)], Rt=[Math.cos(y),-Math.sin(y)];
+  const W=p=>Array.isArray(p)&&p.length>=2&&isFinite(+p[0])&&isFinite(+p[1])?[clamp(cam.x+Rt[0]*p[0]+F[0]*p[1],-WORLD_HALF,WORLD_HALF),clamp(cam.z+Rt[1]*p[0]+F[1]*p[1],-WORLD_HALF,WORLD_HALF)]:null;
+  const allowed=new Set([].concat(...Object.values(SCENE_TYPES)));
+  const made=[];
+  (Array.isArray(list)?list:[]).slice(0,60).forEach(o=>{
+    if(!o||!allowed.has(o.type)||!CATALOG[o.type]) return;
+    const t=CATALOG[o.type], rng=k=>{const u=(t.ui||[]).find(u=>u.k===k&&u.min!==undefined);return u?[u.min,u.max]:[.1,200];};
+    const num=(k,v)=>{v=Number(v);if(!isFinite(v))return;const [a,b]=rng(k);return clamp(v,a,b);};
+    let it;
+    if(t.line){
+      const a=W(o.from), b=W(o.to); if(!a||!b||Math.hypot(b[0]-a[0],b[1]-a[1])<.5) return;
+      it=newItem(o.type,a[0],a[1],b[0],b[1]);
+      if(num('w',o.w)!==undefined&&it.w!==undefined) it.w=num('w',o.w);
+      if(num('h',o.h)!==undefined&&it.h!==undefined) it.h=num('h',o.h);
+      if(typeof o.sidewalks==='boolean'&&it.walk!==undefined) it.walk=o.sidewalks;
+    }else{
+      const a=W(o.at); if(!a) return;
+      it=newItem(o.type,a[0],a[1]);
+      const tc=[cam.x-a[0],cam.z-a[1]], L=Math.hypot(tc[0],tc[1])||1, tr=(Number(o.turn_deg)||0)*D2R;
+      const dir=[Math.cos(tr)*tc[0]/L+Math.sin(tr)*Rt[0],Math.cos(tr)*tc[1]/L+Math.sin(tr)*Rt[1]];
+      it.rot=Math.round(Math.atan2(dir[0],dir[1])*R2D);
+      ['w','d','h'].forEach(k=>{const v=num(k,o[k]);if(v!==undefined&&it[k]!==undefined)it[k]=v;});
+      if(it.s!==undefined){const v=Number(o.size);if(isFinite(v))it.s=clamp(v,.5,3);}
+      if(it.roof!==undefined&&(o.roof==='flat'||o.roof==='gable')) it.roof=o.roof;
+    }
+    if(it.color!==undefined&&hexOk(o.color)) it.color=o.color.toLowerCase();
+    world.items.push(it); mountItem(it); made.push(it);
+  });
+  return made;
+}
+async function buildSceneFromPicture(file,fresh,say){
+  const sample=await getSampler();
+  if(!sample){say('This needs the Claude version of the app.');return;}
+  const lim=await sample.limits().catch(()=>null);
+  if(!lim||!lim.images){say('Picture reading is not available here.');return;}
+  let pic; try{pic=await loadPicture(file,1280);}catch(err){say('That file could not be opened as a picture.');return;}
+  Object.assign(still,{src:pic.dataURL,w:pic.w,h:pic.h,show:true,opacity:.35}); applyStill();
+  say('Studying the picture…');
+  try{
+    const r=await sample.json(SCENE_PROMPT,{images:[dataURLBlob(pic.dataURL)],onText:({text})=>say('Laying out the set… '+text.length+' characters so far')});
+    if(!r||typeof r!=='object') throw {code:'invalid_json'};
+    if(fresh){world.items.slice().forEach(unmountItem);world.items=[];world.groups=[];selItem=-1;selGroup=null;if(focus!=='char')focus='char';}
+    const made=buildSceneObjects(r.objects);
+    const shot=applyShotGuess(r);
+    let g=null; if(made.length){g=makeGroup(made,(typeof r.setting==='string'&&r.setting.trim()?r.setting.trim():'Scene from picture').slice(0,30));}
+    renderItemEditor(); renderItemList(); refreshUI(); setView('camera'); later(30); autosave();
+    say('Built '+made.length+' object'+(made.length===1?'':'s')+(g?' in the group "'+g.name+'"':'')+', '+shot.people+' '+(shot.people===1?'person':'people')+', '+shot.msg+'. The picture is shown see-through over the camera frame to compare (Camera tab > Match a film still).');
+  }catch(e){
+    const c=e&&e.code;
+    say(c==='rate_limited'?'Too many requests right now. Try again in a minute.':c==='invalid_json'?'The answer could not be read. Try again.':
+      c==='image_rejected'?'That picture could not be used. Try a JPEG or PNG.':(c==='not_granted'||c==='sampling_disabled'||c==='images_unavailable')?'Picture reading is not available here.':'Something went wrong. Try again.');
+  }
+}
+
 async function matchStill(say){
   if(!still.src){say('Choose a still first.');return;}
   const sample=await getSampler();
@@ -2644,28 +2771,9 @@ async function matchStill(say){
   try{
     const r=await sample.json(STILL_PROMPT,{images:[dataURLBlob(still.src)],onText:()=>say('Working out the lens and camera position…')});
     if(!r||typeof r!=='object') throw {code:'invalid_json'};
-    const n=(v,a,b,d)=>{v=Number(v);return isFinite(v)?clamp(v,a,b):d;};
-    cam.aspect=ASPECTS[r.aspect]?r.aspect:nearestAspect(still.w/Math.max(1,still.h));
-    cam.lens=nearestLens(n(r.focal_mm,8,400,50));
-    cam.y=n(r.camera_height_m,.1,CAM_MAX_H,1.6); cam.pitch=n(r.tilt_deg,-89,89,0); cam.roll=-n(r.horizon_tilt_deg,-45,45,0);
-    updateShotCam();
-    const subs=(Array.isArray(r.subjects)?r.subjects:[]).slice(0,MAX_CHARS), hf=optics().hf, y=cam.yaw*D2R;
-    const F=[-Math.sin(y),-Math.cos(y)], Rt=[Math.cos(y),-Math.sin(y)];
-    subs.forEach((sj,i)=>{
-      let c=chars[i]||addChar({}); if(!c) return;
-      const d=n(sj.distance_m,.5,120,4), a=(n(sj.x,0,1,.5)-.5)*hf*D2R, gd=Math.max(.3,Math.sqrt(Math.max(0,d*d-Math.pow(cam.y-1.2,2))));
-      c.x=clamp(cam.x+F[0]*gd*Math.cos(a)+Rt[0]*gd*Math.sin(a),-WORLD_HALF,WORLD_HALF);
-      c.z=clamp(cam.z+F[1]*gd*Math.cos(a)+Rt[1]*gd*Math.sin(a),-WORLD_HALF,WORLD_HALF);
-      const tc=[cam.x-c.x,cam.z-c.z], L=Math.hypot(tc[0],tc[1])||1; tc[0]/=L; tc[1]/=L;
-      const f=String(sj.facing||'camera').toLowerCase();
-      const dir=f==='away'?[-tc[0],-tc[1]]:f==='left'?[-Rt[0],-Rt[1]]:f==='right'?Rt:f.includes('left')?[tc[0]-Rt[0],tc[1]-Rt[1]]:f.includes('right')?[tc[0]+Rt[0],tc[1]+Rt[1]]:tc;
-      c.rot=Math.atan2(dir[0],dir[1])*R2D;
-      if(POSES[sj.pose]) c.pose=sj.pose;
-      placeChar(c);
-    });
-    renderChips(); refreshUI(); setView('camera'); later(30);
-    const lensNote=Math.round(n(r.focal_mm,8,400,50))!==cam.lens?' (closest to the '+Math.round(r.focal_mm)+' mm it guessed)':'';
-    say('Matched: '+(r.shot||'shot')+', '+cam.lens+' mm'+lensNote+', camera '+cam.y.toFixed(1)+' m high, tilt '+Math.round(cam.pitch)+'°. '+(subs.length?subs.length+' '+(subs.length>1?'people':'person')+' placed. ':'')+(typeof r.notes==='string'?r.notes.slice(0,160):''));
+    const res=applyShotGuess(r);
+    refreshUI(); setView('camera'); later(30);
+    say('Matched: '+res.msg+'. '+(res.people?res.people+' '+(res.people>1?'people':'person')+' placed. ':'')+(typeof r.notes==='string'?r.notes.slice(0,160):''));
   }catch(e){
     const c=e&&e.code;
     say(c==='rate_limited'?'Too many requests right now. Try again in a minute.':c==='invalid_json'?'The answer could not be read. Try again.':
@@ -2695,6 +2803,7 @@ async function matchStill(say){
   addBtn(mb,'Choose a still…','',()=>fin.click());
   let matchBtn=null;
   if(HAS_AI) matchBtn=addBtn(mb,'Match the camera','primary',async()=>{matchBtn.disabled=true;await matchStill(say);matchBtn.disabled=false;});
+  else claudeOnly(ms,'Matching the camera automatically');
   const rm=addBtn(mb,'Remove','warn',()=>{still.src=null;applyStill();refreshUI();autosave();say('');});
   fin.addEventListener('change',async()=>{
     const f=fin.files[0]; fin.value=''; if(!f) return;
@@ -2935,7 +3044,13 @@ function renderItemEditor(){
     else if(u.set) addSwatches(itemEd,SETS[u.set],()=>gv(u.k),apply,B);
     else addSlider(itemEd,{label:u.label,min:u.min,max:u.max,step:u.step,get:()=>gv(u.k),set:apply,fmt:u.fmt||(u.k==='s'?(v=>v.toFixed(2)+'×'):m1)},B);
   });
+  if(t.base){
+    customSize(it);
+    addSlider(itemEd,{label:'Overall size',min:.1,max:10,step:.01,get:()=>+(it.w/t.base[0]).toFixed(2),set:v=>{const k=v/(it.w/t.base[0]);it.w=+(it.w*k).toFixed(3);it.d=+(it.d*k).toFixed(3);it.h=+(it.h*k).toFixed(3);rebuildItem(it);},fmt:v=>Math.round(v*100)+'%'},B);
+    addNote(itemEd,'Stretch it with the arrows on its sides in Top view and the arrow on top in Front view, or use Width, Depth and Height below.');
+  }
   const bt=document.createElement('div'); bt.className='btns'; itemEd.appendChild(bt);
+  if(t.base) addBtn(bt,'Original size','',()=>{it.w=+t.base[0].toFixed(2);it.d=+t.base[1].toFixed(2);it.h=+t.base[2].toFixed(2);rebuildItem(it);refreshUI();});
   addBtn(bt,'Duplicate','',()=>{
     const c=JSON.parse(JSON.stringify(it)); c.id=itemSeq++;
     if(t.line){c.x+=3;c.z+=3;c.x2+=3;c.z2+=3;}else{c.x+=3;c.z+=3;}
@@ -2954,6 +3069,17 @@ function renderItemEditor(){
 }
 (function(){
   const s=sec('world');
+  const bs=folder(s,'Build a scene from a picture',false,false);
+  addNote(bs,'Choose a photo or film still. Claude lays out buildings, roads, trees, cars and people to match, and sets the camera like the picture. Everything it builds goes in one group.');
+  if(HAS_AI){
+    let fresh=true;
+    addToggle(bs,'Start from an empty world',()=>fresh,v=>{fresh=v;});
+    const bin=document.createElement('input'); bin.type='file'; bin.accept='image/*'; bin.hidden=true; bs.appendChild(bin);
+    const bb=document.createElement('div'); bb.className='btns'; bs.appendChild(bb);
+    const bst=addNote(bs,''); bst.setAttribute('aria-live','polite');
+    const go=addBtn(bb,'Choose a picture and build','primary',()=>bin.click());
+    bin.addEventListener('change',async()=>{const f=bin.files[0];bin.value='';if(!f)return;go.disabled=true;await buildSceneFromPicture(f,fresh,t=>{bst.textContent=t;});go.disabled=false;});
+  }else claudeOnly(bs,'Building a scene from a picture');
   addNote(s,'Tap a category along the top of the picture, such as Streets or Buildings, to open its list. Pick an item, then tap the map. Roads, walls and fences are drawn by dragging. Tap an object to select it. In Top view drag the arrows on its sides to change width and depth, and in Front view drag the arrow on top for height.');
 
   h3(s,'Selected');
@@ -3075,19 +3201,34 @@ function modelFootprint(m){
   });
   return [mx*2,mz*2];
 }
+function modelHeight(m){let h=.1;modelParts(m).forEach(p=>{h=Math.max(h,(p.y||0)+p.h);});return h;}
+/* placed copies have their own width, depth and height, so they stretch like buildings */
 function registerModel(m){
-  CATALOG['cm_'+m.id]={cat:'Custom',label:m.name||'Custom item',build:'custom',def:{s:1,model:m.id},fp:modelFootprint(m),ui:sizeUI};
+  const fp=modelFootprint(m), H=modelHeight(m), r2=v=>+v.toFixed(2);
+  CATALOG['cm_'+m.id]={cat:'Custom',label:m.name||'Custom item',build:'custom',rect:true,base:[fp[0],fp[1],H],
+    def:{model:m.id,w:r2(fp[0]),d:r2(fp[1]),h:r2(H)},
+    ui:[P('w','Width',.1,200,.05),P('d','Depth',.1,200,.05),P('h','Height',.1,200,.05)]};
+}
+function customSize(it){                                   /* older copies only had one overall size */
+  const t=CATALOG[it.type]; if(!t||!t.base||it.w!==undefined) return;
+  const k=it.s||1; it.w=+(t.base[0]*k).toFixed(2); it.d=+(t.base[1]*k).toFixed(2); it.h=+(t.base[2]*k).toFixed(2); delete it.s;
 }
 BUILD.custom=function(it,g){
-  const m=models.find(x=>x.id===it.model);
-  if(!m){bx(g,1,1,1,bm('#888888'),0,.5,0);return;}
-  modelParts(m).forEach(p=>g.add(partMesh(p)));
+  customSize(it);
+  const m=models.find(x=>x.id===it.model), t=CATALOG[it.type];
+  if(!m||!t||!t.base){bx(g,it.w||1,it.h||1,it.d||1,bm('#888888'),0,(it.h||1)/2,0);return;}
+  const inner=new THREE.Group(); modelParts(m).forEach(p=>inner.add(partMesh(p)));
+  inner.scale.set(it.w/t.base[0],it.h/t.base[2],it.d/t.base[1]); g.add(inner);
 };
 function refreshCats(){CATS=[...new Set(Object.values(CATALOG).filter(t=>!t.hidden).map(t=>t.cat))];}
 let instT=null, instDirty=new Set();
 function flushInstances(){
   clearTimeout(instT);
-  instDirty.forEach(id=>{const m=models.find(x=>x.id===id); if(!m) return; registerModel(m);
+  instDirty.forEach(id=>{const m=models.find(x=>x.id===id); if(!m) return;
+    const old=CATALOG['cm_'+id]&&CATALOG['cm_'+id].base, its=world.items.filter(i=>i.type==='cm_'+id);
+    its.forEach(customSize); const ratios=old?its.map(i=>[i.w/old[0],i.d/old[1],i.h/old[2]]):null;
+    registerModel(m);
+    const nb=CATALOG['cm_'+id].base; if(ratios) its.forEach((i,k)=>{i.w=+(nb[0]*ratios[k][0]).toFixed(2);i.d=+(nb[1]*ratios[k][1]).toFixed(2);i.h=+(nb[2]*ratios[k][2]).toFixed(2);});
     world.items.forEach(i=>{if(i.type==='cm_'+id&&itemObjs.has(i.id))rebuildItem(i);});});
   instDirty.clear(); refreshCats(); renderPalette(); renderItemList();
 }
@@ -3419,6 +3560,7 @@ function renderModelPanel(){
   }
   s.appendChild(ai);
   /* AI (only where Claude can answer: inside a published Claude page) */
+  if(!HAS_AI){const fa=mFolder(ai,'Make it with AI');addNote(fa,'Describe a building or object, or attach a photo of one, and Claude builds it from shapes.');claudeOnly(fa,'Building from a description or photo');}
   if(HAS_AI){
   const fa=mFolder(ai,'Make it with AI');
   const ta=document.createElement('textarea'); ta.className='field'; ta.style.height='72px';
