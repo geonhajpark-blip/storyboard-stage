@@ -71,6 +71,7 @@ html.compact .shot{grid-template-columns:104px minmax(0,1fr)}
 
 #frame{position:absolute;pointer-events:none;display:none;border:1px solid rgba(255,255,255,.4);color:#fff;
   font:11px/1.2 ui-monospace,"SF Mono",Menlo,Consolas,monospace;text-shadow:0 1px 2px rgba(0,0,0,.8)}
+#stillImg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:none;pointer-events:none}
 #frame .g{position:absolute;background:rgba(255,255,255,.28);display:none}
 #frame.thirds .g{display:block}
 #frame .v1{left:33.333%;top:0;bottom:0;width:1px}
@@ -348,6 +349,7 @@ details.more>*:last-child{margin-bottom:10px}
   <div id="stage">
     <canvas id="gl"></canvas>
     <div id="frame" class="thirds">
+      <img id="stillImg" alt="" aria-hidden="true">
       <div class="g v1"></div><div class="g v2"></div><div class="g h1"></div><div class="g h2"></div>
       <div class="tl"><i></i>Pyxis 6K</div>
       <div class="bl" id="meta"></div>
@@ -456,6 +458,8 @@ details.more>*:last-child{margin-bottom:10px}
 'use strict';
 const D2R=Math.PI/180, R2D=180/Math.PI;
 const $=(s,r=document)=>r.querySelector(s);
+/* Claude features (AI models, matching a still) work only inside the published Claude page */
+const HAS_AI=!!(window.claude&&typeof window.claude.use==='function');
 const clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
 const stage=$('#stage'), canvas=$('#gl');
 
@@ -499,9 +503,9 @@ const POSE_KEYS=Object.keys(POSES.stand);
 /* Blackmagic Pyxis 6K: full-frame 36 mm wide sensor. Every format uses the full sensor width. */
 const SENSOR_W=36;
 const ASPECTS={'3:2':3/2,'17:9':17/9,'16:9':16/9,'2.39:1':2.39};
-const LENSES=[35,50,200];
-const LENS_LEN={35:.07,50:.09,200:.28};
-const LENS_R={35:.042,50:.042,200:.052};
+const LENSES=[18,24,35,50,85,135,200];
+const LENS_LEN={18:.06,24:.065,35:.07,50:.09,85:.12,135:.2,200:.28};
+const LENS_R={18:.048,24:.045,35:.042,50:.042,85:.045,135:.05,200:.052};
 const CAM_LIMIT=150, CAM_MAX_H=80;
 
 /* =====================================================================
@@ -2594,16 +2598,113 @@ function aimAtSelected(){
   cam.roll=0; updateCamPose(); refreshUI();
 }
 
+/* ---------- reference pictures: a film still over the frame, or a photo for a model ---------- */
+function loadPicture(file,maxDim){
+  return new Promise((res,rej)=>{
+    if(!file||!/^image\//.test(file.type)) return rej(new Error('not an image'));
+    const url=URL.createObjectURL(file), im=new Image();
+    im.onload=()=>{
+      const k=Math.min(1,maxDim/Math.max(im.naturalWidth,im.naturalHeight)), w=Math.round(im.naturalWidth*k), h=Math.round(im.naturalHeight*k);
+      const cv=document.createElement('canvas'); cv.width=w; cv.height=h; cv.getContext('2d').drawImage(im,0,0,w,h);
+      URL.revokeObjectURL(url);
+      res({dataURL:cv.toDataURL('image/jpeg',.82),w,h});
+    };
+    im.onerror=()=>{URL.revokeObjectURL(url);rej(new Error('unreadable'));};
+    im.src=url;
+  });
+}
+const dataURLBlob=d=>{const [h,b]=d.split(',');const bin=atob(b),u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);return new Blob([u],{type:(h.match(/data:([^;]+)/)||[])[1]||'image/jpeg'});};
+const still={src:null,w:0,h:0,show:true,opacity:.5};
+function applyStill(){
+  const im=$('#stillImg');
+  if(!still.src){im.style.display='none';im.removeAttribute('src');return;}
+  if(im.getAttribute('src')!==still.src) im.src=still.src;
+  im.style.display=still.show?'block':'none'; im.style.opacity=still.opacity;
+}
+function nearestAspect(r){return Object.keys(ASPECTS).reduce((a,k)=>Math.abs(Math.log(ASPECTS[k]/r))<Math.abs(Math.log(ASPECTS[a]/r))?k:a,'16:9');}
+const nearestLens=mm=>LENSES.reduce((a,l)=>Math.abs(Math.log(l/mm))<Math.abs(Math.log(a/mm))?l:a,50);
+const STILL_PROMPT='You are a cinematographer helping a previs app recreate a shot. Study the attached film still and estimate how it was filmed.\n'+
+'Reply with only one JSON object:\n'+
+'{"aspect": "2.39:1" or "16:9" or "17:9" or "3:2", "focal_mm": 35, "camera_height_m": 1.6, "tilt_deg": -5, "horizon_tilt_deg": 0, "shot": "wide", '+
+'"subjects": [{"x": 0.5, "distance_m": 4, "pose": "stand", "facing": "camera"}], "setting": "a few words", "notes": "one short sentence about the framing"}\n'+
+'Rules:\n- focal_mm is the full-frame (36 mm wide sensor) equivalent focal length.\n- camera_height_m is the lens height above the ground.\n'+
+'- tilt_deg: positive when the camera looks up, negative when it looks down.\n- horizon_tilt_deg: positive when the horizon rises toward the right of the frame (a Dutch angle), else 0.\n'+
+'- shot is one of: extreme wide, wide, full, medium, medium close-up, close-up, extreme close-up.\n'+
+'- subjects: the people in the frame, nearest first, at most 4. x is the horizontal centre of the person in the frame (0 left edge, 1 right edge). distance_m is how far they are from the camera, assuming people are about 1.75 m tall. pose is stand, sit or lay. facing is one of: camera, away, left, right, three-quarter left, three-quarter right (as seen in the frame).\n'+
+'- If there are no people, use an empty list. Give your best estimate even when unsure.';
+async function matchStill(say){
+  if(!still.src){say('Choose a still first.');return;}
+  const sample=await getSampler();
+  if(!sample){say('Matching needs the Claude version of this app. You can still line the shot up by hand with the see-through still.');return;}
+  const lim=await sample.limits().catch(()=>null);
+  if(!lim||!lim.images){say('Picture reading is not available here.');return;}
+  say('Studying the still…');
+  try{
+    const r=await sample.json(STILL_PROMPT,{images:[dataURLBlob(still.src)],onText:()=>say('Working out the lens and camera position…')});
+    if(!r||typeof r!=='object') throw {code:'invalid_json'};
+    const n=(v,a,b,d)=>{v=Number(v);return isFinite(v)?clamp(v,a,b):d;};
+    cam.aspect=ASPECTS[r.aspect]?r.aspect:nearestAspect(still.w/Math.max(1,still.h));
+    cam.lens=nearestLens(n(r.focal_mm,8,400,50));
+    cam.y=n(r.camera_height_m,.1,CAM_MAX_H,1.6); cam.pitch=n(r.tilt_deg,-89,89,0); cam.roll=-n(r.horizon_tilt_deg,-45,45,0);
+    updateShotCam();
+    const subs=(Array.isArray(r.subjects)?r.subjects:[]).slice(0,MAX_CHARS), hf=optics().hf, y=cam.yaw*D2R;
+    const F=[-Math.sin(y),-Math.cos(y)], Rt=[Math.cos(y),-Math.sin(y)];
+    subs.forEach((sj,i)=>{
+      let c=chars[i]||addChar({}); if(!c) return;
+      const d=n(sj.distance_m,.5,120,4), a=(n(sj.x,0,1,.5)-.5)*hf*D2R, gd=Math.max(.3,Math.sqrt(Math.max(0,d*d-Math.pow(cam.y-1.2,2))));
+      c.x=clamp(cam.x+F[0]*gd*Math.cos(a)+Rt[0]*gd*Math.sin(a),-WORLD_HALF,WORLD_HALF);
+      c.z=clamp(cam.z+F[1]*gd*Math.cos(a)+Rt[1]*gd*Math.sin(a),-WORLD_HALF,WORLD_HALF);
+      const tc=[cam.x-c.x,cam.z-c.z], L=Math.hypot(tc[0],tc[1])||1; tc[0]/=L; tc[1]/=L;
+      const f=String(sj.facing||'camera').toLowerCase();
+      const dir=f==='away'?[-tc[0],-tc[1]]:f==='left'?[-Rt[0],-Rt[1]]:f==='right'?Rt:f.includes('left')?[tc[0]-Rt[0],tc[1]-Rt[1]]:f.includes('right')?[tc[0]+Rt[0],tc[1]+Rt[1]]:tc;
+      c.rot=Math.atan2(dir[0],dir[1])*R2D;
+      if(POSES[sj.pose]) c.pose=sj.pose;
+      placeChar(c);
+    });
+    renderChips(); refreshUI(); setView('camera'); later(30);
+    const lensNote=Math.round(n(r.focal_mm,8,400,50))!==cam.lens?' (closest to the '+Math.round(r.focal_mm)+' mm it guessed)':'';
+    say('Matched: '+(r.shot||'shot')+', '+cam.lens+' mm'+lensNote+', camera '+cam.y.toFixed(1)+' m high, tilt '+Math.round(cam.pitch)+'°. '+(subs.length?subs.length+' '+(subs.length>1?'people':'person')+' placed. ':'')+(typeof r.notes==='string'?r.notes.slice(0,160):''));
+  }catch(e){
+    const c=e&&e.code;
+    say(c==='rate_limited'?'Too many requests right now. Try again in a minute.':c==='invalid_json'?'The answer could not be read. Try again.':
+      c==='image_rejected'?'That picture could not be used. Try a JPEG or PNG.':(c==='not_granted'||c==='sampling_disabled'||c==='images_unavailable')?'Picture reading is not available here.':'Something went wrong. Try again.');
+  }
+}
+
 /* ---------- Camera tab ---------- */
 (function(){
   const s=sec('camera');
   const camRange=()=>{const M=Math.max(room.w,room.d)/2+25;return [-M,M];};
-  h3(s,'Lens');
-  addSeg(s,LENSES.map(l=>[l,l+'mm']),()=>cam.lens,v=>{cam.lens=parseInt(v,10);updateShotCam();});
+  h3(s,'Lens (mm)');
+  addSeg(s,LENSES.map(l=>[l,String(l)]),()=>cam.lens,v=>{cam.lens=parseInt(v,10);updateShotCam();});
   h3(s,'Frame');
   addSeg(s,Object.keys(ASPECTS).map(k=>[k,k]),()=>cam.aspect,v=>{cam.aspect=v;updateShotCam();});
   const ro=document.createElement('div'); ro.className='readout'; ro.style.marginTop='10px'; s.appendChild(ro);
   syncs.push(()=>{const o=optics();ro.innerHTML='Sensor <b>'+SENSOR_W.toFixed(1)+' × '+o.sh.toFixed(1)+' mm</b> full frame<br>Field of view <b>'+o.hf.toFixed(1)+'°</b> wide, <b>'+o.vf.toFixed(1)+'°</b> tall';});
+
+  /* match a film still */
+  const ms=folder(s,'Match a film still',false,false);
+  addNote(ms,HAS_AI?'Choose a frame from a film. It appears see-through over your camera frame, and Claude can set the lens, height, angle and place your characters to match.':'Choose a frame from a film. It appears see-through over your camera frame so you can line your shot up with it.');
+  const fin=document.createElement('input'); fin.type='file'; fin.accept='image/*'; fin.hidden=true; ms.appendChild(fin);
+  const prev=document.createElement('img'); prev.alt='Your film still'; prev.style.cssText='width:100%;border-radius:8px;display:none;margin:6px 0;background:#000'; ms.appendChild(prev);
+  const mb=document.createElement('div'); mb.className='btns'; ms.appendChild(mb);
+  const st=addNote(ms,''); st.setAttribute('aria-live','polite');
+  const say=t=>{st.textContent=t;};
+  addBtn(mb,'Choose a still…','',()=>fin.click());
+  let matchBtn=null;
+  if(HAS_AI) matchBtn=addBtn(mb,'Match the camera','primary',async()=>{matchBtn.disabled=true;await matchStill(say);matchBtn.disabled=false;});
+  const rm=addBtn(mb,'Remove','warn',()=>{still.src=null;applyStill();refreshUI();autosave();say('');});
+  fin.addEventListener('change',async()=>{
+    const f=fin.files[0]; fin.value=''; if(!f) return;
+    try{
+      const pic=await loadPicture(f,1280); Object.assign(still,{src:pic.dataURL,w:pic.w,h:pic.h,show:true});
+      cam.aspect=nearestAspect(pic.w/pic.h); updateShotCam(); setView('camera'); applyStill(); refreshUI(); autosave();
+      say('Frame shape set to '+cam.aspect+'. '+(HAS_AI?'Tap Match the camera, or line it up by hand.':'Line your shot up with it by hand.'));
+    }catch(err){say('That file could not be opened as a picture.');}
+  });
+  addToggle(ms,'Show the still over the frame',()=>still.show,v=>{still.show=v;applyStill();});
+  addSlider(ms,{label:'See-through',min:.1,max:1,step:.05,get:()=>still.opacity,set:v=>{still.opacity=v;applyStill();},fmt:v=>Math.round(v*100)+'%'});
+  syncs.push(()=>{prev.style.display=still.src?'block':'none';if(still.src&&prev.getAttribute('src')!==still.src)prev.src=still.src;rm.style.display=still.src?'':'none';if(matchBtn)matchBtn.style.display=still.src?'':'none';});
 
   const fd=document.createElement('details'); fd.className='more';
   const fsum=document.createElement('summary'); fsum.textContent='How to move the camera'; fd.appendChild(fsum);
@@ -3235,10 +3336,9 @@ function placeModel(m){
 }
 
 /* ---- AI: ask Claude to design or change a model ---- */
-const HAS_AI=!!(window.claude&&typeof window.claude.use==='function');
-let samplerP=null, aiCtl=null, aiMsg='';
+let samplerP=null, aiCtl=null, aiMsg='', aiPhoto=null, aiLoading=false;
 function aiSay(t){aiMsg=t;const e=$('#aiStatus');if(e)e.textContent=t;}
-function aiBusy(){const on=!!aiCtl;['#aiNew','#aiChg'].forEach(q=>{const b=$(q);if(b)b.disabled=on;});const st=$('#aiStop');if(st)st.style.display=on?'':'none';}
+function aiBusy(){const on=!!aiCtl||aiLoading;['#aiNew','#aiChg'].forEach(q=>{const b=$(q);if(b)b.disabled=on;});const st=$('#aiStop');if(st)st.style.display=on?'':'none';}
 function getSampler(){
   if(!samplerP) samplerP=(window.claude&&typeof window.claude.use==='function')?Promise.resolve(window.claude.use('sample')).catch(()=>null):Promise.resolve(null);
   return samplerP;
@@ -3253,18 +3353,23 @@ const AI_FORMAT='Reply with only one JSON object of this shape:\n'+
 '- For a house or other simple building you may instead set "house" to {"w": 9, "d": 10, "floors": 2, "floorH": 2.9, "roof": "gable" or "hip" or "flat", "pitch": 0.45, "wall": "#d8c3a5", "roofColor": "#5e5b57", "trim": "#f1f2ee", "win": 3, "door": true, "porch": false, "chimney": true, "garage": false}. The app then builds the walls, windows, door and roof itself, and "parts" only holds extra details such as a fence, mailbox, balcony or sign.';
 async function aiRun(desc,changeCurrent){
   const ui={status:aiSay,busy:aiBusy};
-  desc=desc.trim(); if(!desc){ui.status('Describe what you want first.');return;}
+  if(aiLoading){ui.status('The photo is still being prepared. Try again in a moment.');return;}
+  desc=desc.trim(); if(!desc&&!aiPhoto){ui.status('Describe what you want, or attach a photo.');return;}
   const sample=await getSampler();
   if(!sample){ui.status('AI help works when this page is open as a published Claude artifact. You can still build by hand.');return;}
   let prompt;
+  const photoLine=aiPhoto?'A reference photo is attached. Match its shape, proportions, details and colours as closely as simple shapes allow.\n':'';
+  if(!desc&&aiPhoto) desc='the building or object in the photo';
   if(changeCurrent&&curModel){
-    prompt='You design simple 3D models for a film previsualisation app.\nHere is the current model as JSON:\n'+
+    prompt='You design simple 3D models for a film previsualisation app.\n'+photoLine+'Here is the current model as JSON:\n'+
       JSON.stringify({name:curModel.name,house:curModel.house,parts:curModel.parts})+
       '\n\nChange it like this: '+desc+'\nReturn the WHOLE updated model, not only the changes.\n\n'+AI_FORMAT;
-  }else prompt='You design simple 3D models for a film previsualisation app.\nMake this: '+desc+'\n\n'+AI_FORMAT;
+  }else prompt='You design simple 3D models for a film previsualisation app.\n'+photoLine+'Make this: '+desc+'\n\n'+AI_FORMAT;
   aiCtl=new AbortController(); ui.busy(); ui.status('Thinking…');
   try{
-    const r=await sample.json(prompt,{signal:aiCtl.signal,onText:({text})=>ui.status('Designing… '+text.length+' characters so far')});
+    const opts={signal:aiCtl.signal,onText:({text})=>ui.status('Designing… '+text.length+' characters so far')};
+    if(aiPhoto){const lim=await sample.limits().catch(()=>null);if(!lim||!lim.images)throw {code:'images_unavailable'};opts.images=[dataURLBlob(aiPhoto)];}
+    const r=await sample.json(prompt,opts);
     if(!r||typeof r!=='object') throw {code:'invalid_json'};
     const parts=sanitizeParts(r.parts), house=r.house&&typeof r.house==='object'?sanitizeHouse(r.house):null;
     if(!parts.length&&!house) throw {code:'invalid_json'};
@@ -3277,7 +3382,7 @@ async function aiRun(desc,changeCurrent){
     const c=e&&e.code;
     ui.status(c==='cancelled'?'Stopped.':c==='rate_limited'?'Too many requests right now. Try again in a minute.':
       c==='invalid_json'?'The answer could not be read. Try again, or describe it more simply.':
-      c==='refused'?'Claude declined that. Try describing it differently.':
+      c==='refused'?'Claude declined that. Try describing it differently.':c==='images_unavailable'?'Photos cannot be sent from here. Describe it in words instead.':c==='image_rejected'?'That photo could not be used. Try a JPEG or PNG.':
       (c==='not_granted'||c==='sampling_disabled'||c==='not_declared'||c==='capability_disabled')?'AI help is not available for this page.':
       'Something went wrong. Try again.');
   }finally{aiCtl=null;ui.busy();}
@@ -3317,6 +3422,12 @@ function renderModelPanel(){
   const ta=document.createElement('textarea'); ta.className='field'; ta.style.height='72px';
   ta.placeholder=m?'Describe a change, e.g. "add a red front door and window boxes", or a new thing to make':'e.g. a food truck, a red mailbox, a two-storey brick house with a porch';
   fa.appendChild(ta);
+  const ph=document.createElement('div'); ph.style.cssText='display:flex;align-items:center;gap:10px;margin:8px 0'; fa.appendChild(ph);
+  const pin=document.createElement('input'); pin.type='file'; pin.accept='image/*'; pin.hidden=true; ph.appendChild(pin);
+  if(aiPhoto){const t=document.createElement('img');t.src=aiPhoto;t.alt='Reference photo';t.style.cssText='width:72px;height:54px;object-fit:cover;border-radius:6px';ph.appendChild(t);}
+  addBtn(ph,aiPhoto?'Change photo':'Attach a photo…','',()=>pin.click());
+  if(aiPhoto) addBtn(ph,'Remove','warn',()=>{aiPhoto=null;renderModelPanel();});
+  pin.addEventListener('change',async()=>{const f=pin.files[0];pin.value='';if(!f)return;aiSay('Preparing the photo…');aiLoading=true;aiBusy();try{aiPhoto=(await loadPicture(f,1280)).dataURL;aiMsg='Photo attached. Add a few words if you like (e.g. "the house on the left"), then tap Create new.';}catch(err){aiMsg='That file could not be opened as a picture.';}aiLoading=false;renderModelPanel();});
   const ab=document.createElement('div'); ab.className='btns'; fa.appendChild(ab);
   const st=addNote(fa,aiMsg||'Claude designs it from simple shapes. Every part stays editable afterwards.'); st.id='aiStatus'; st.setAttribute('aria-live','polite');
   addBtn(ab,'Create new','primary',()=>aiRun(ta.value,false)).id='aiNew';
@@ -4266,7 +4377,7 @@ async function exportSheet(){
   cv.toBlob(b=>{download(b,'storyboard.png');toast('Sheet exported');},'image/png');
 }
 function saveProject(){
-  const data=Object.assign({app:'storyboard-stage',v:4},snapshot(),{frames,locations,models});
+  const data=projectData();
   download(new Blob([JSON.stringify(data)],{type:'application/json'}),'storyboard-project.json'); toast('Project saved');
 }
 $('#fileIn').addEventListener('change',e=>{
@@ -4297,13 +4408,15 @@ function idb(){
 }
 async function idbGet(k){const db=await idb();return new Promise((res,rej)=>{const q=db.transaction(AS_STORE,'readonly').objectStore(AS_STORE).get(k);q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error);});}
 async function idbSet(k,v){const db=await idb();return new Promise((res,rej)=>{const tx=db.transaction(AS_STORE,'readwrite');tx.objectStore(AS_STORE).put(v,k);tx.oncomplete=()=>res();tx.onerror=()=>rej(tx.error);});}
-function projectData(){return Object.assign({app:'storyboard-stage',v:4,savedAt:Date.now()},snapshot(),{frames,locations,models});}
+function projectData(){return Object.assign({app:'storyboard-stage',v:4,savedAt:Date.now()},snapshot(),{frames,locations,models,still:still.src?{src:still.src,w:still.w,h:still.h,show:still.show,opacity:still.opacity}:null});}
 /* a project from a file or from autosave */
 function applyProject(d){
   if(Array.isArray(d.models)&&d.models.length){setModels(d.models);saveModels();curModel=null;selPart=-1;rebuildModelView();renderModelPanel();renderLibrary();renderPalette();}
   applyState(d);
   frames=Array.isArray(d.frames)?d.frames:[];
   if(Array.isArray(d.locations)){locations=d.locations;locSeq=1+locations.reduce((m,l)=>Math.max(m,l.id||0),0);renderLocations();}
+  if(d.still&&typeof d.still.src==='string'&&d.still.src.startsWith('data:image/')){Object.assign(still,d.still);}else{still.src=null;}
+  applyStill();
   bv.sel=null; renderShots();
   hist.undo.length=0; hist.redo.length=0; hist.cur=sceneJSON(); syncUndoBtns();
 }
