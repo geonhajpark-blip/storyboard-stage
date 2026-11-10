@@ -1,5 +1,5 @@
 /* Storyboard Stage offline worker. The version changes whenever the app does, so phones pick up updates. */
-const CACHE='storyboard-stage-15dc3c1009';
+const CACHE='storyboard-stage-515c9aa1b2';
 const FILES=["./", "index.html", "three.min.js", "manifest.webmanifest", "icon-192.png", "icon-512.png", "icon-maskable-512.png", "apple-touch-icon.png"];
 self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(FILES.map(f=>new Request(f,{cache:'reload'})))).then(()=>self.skipWaiting()));});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));});
