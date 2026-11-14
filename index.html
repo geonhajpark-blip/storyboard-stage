@@ -119,7 +119,6 @@ html.compact .shot{grid-template-columns:104px minmax(0,1fr)}
 #presetList button.on{background:#f1f2ee;color:#15181a}
 #presetBar button.pcat.act{box-shadow:inset 0 0 0 2px #f5c400}
 #stage.mode-build #presetBar{right:10px}
-#stage.mode-build #mini,#stage.mode-build #shotBtn,#stage.mode-direct #presetBar,#stage.mode-direct #presetList,#stage.mode-direct #placebar{display:none!important}
 #stage.clean #presetList,#stage.boardmode #presetList,
 #stage.clean #mini,#stage.clean #presetBar,#stage.boardmode #mini,#stage.boardmode #presetBar{display:none!important}
 
@@ -162,8 +161,11 @@ html.compact #mpadLift{grid-template-rows:42px 42px}
 #app.panelopen #stickR{right:calc(var(--pw) + 24px)}
 #app.panelopen #stage.mode-build #presetBar{right:calc(var(--pw) + 20px)}
 #stage.clean #modeSeg,#stage.clean #panelBtn{display:none!important}
+#camGoBtn{display:none}
+#stage:not(.mode-pose) #camGoBtn{display:block}
+#stage.clean #camGoBtn,#stage.boardmode #camGoBtn{display:none!important}
 #castBtn{display:none}
-#stage.mode-direct #castBtn{display:block}
+#stage:not(.mode-pose) #castBtn{display:block}
 #stage.clean #castBtn,#stage.boardmode #castBtn,#stage.clean #castPop,#stage.boardmode #castPop{display:none!important}
 #castPop{position:absolute;top:calc(var(--tb,48px) + 10px);right:calc(196px + var(--sr,0px));width:min(300px,62%);z-index:12;display:none;padding:10px 12px 12px;border-radius:14px;
   background:rgba(18,19,22,.9);color:#eceeea;border:1px solid rgba(255,255,255,.16);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);max-height:calc(100% - var(--tb,48px) - 24px);overflow:auto}
@@ -402,7 +404,6 @@ html.compact #panel{right:calc(6px + var(--sr,0px));bottom:calc(6px + var(--sb,0
   <div id="stage">
     <canvas id="gl"></canvas>
     <div id="frame" class="thirds">
-      <img id="stillImg" alt="" aria-hidden="true">
       <div class="g v1"></div><div class="g v2"></div><div class="g h1"></div><div class="g h2"></div>
       <div class="tl"><i></i>Pyxis 6K</div>
       <div class="bl" id="meta"></div>
@@ -425,15 +426,13 @@ html.compact #panel{right:calc(6px + var(--sr,0px));bottom:calc(6px + var(--sb,0
         <button data-v="front">Front</button>
         <button data-v="camera">Camera</button>
       </div>
-      <div class="seg glass" id="mViewSeg"><button data-mv="3d" class="on">3D</button><button data-mv="top">Top</button><button data-mv="front">Front</button><button data-mv="side">Side</button></div>
-      <div class="seg glass" id="modeSeg"><button data-m="build"><span class="lg">World building</span><span class="sm">Build</span></button><button data-m="direct"><span class="lg">Directing</span><span class="sm">Direct</span></button><button data-m="model"><span class="lg">Modeling</span><span class="sm">Model</span></button></div>
       <div class="topright">
         <button class="fitbtn" id="fitBtn">Fit</button>
         <button class="tbtn" id="stickBtn" style="display:none">Sticks</button>
         <button class="tbtn sq" id="undoBtn" aria-label="Undo" title="Undo (Ctrl+Z)">&#8630;</button>
         <button class="tbtn sq" id="redoBtn" aria-label="Redo" title="Redo (Ctrl+Shift+Z)">&#8631;</button>
+        <button class="tbtn" id="camGoBtn" title="Go to where the camera is">Find camera</button>
         <button class="tbtn" id="castBtn" title="Bring characters and civilians into the shot">Cast</button>
-        <button class="tbtn" id="refBtn" title="Show a reference picture over the camera frame">Reference</button>
         <button class="tbtn" id="uiBtn">Hide UI</button>
         <button class="tbtn sq" id="panelBtn" aria-label="Open panel" aria-expanded="false" title="Panel (P)"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 5h8M15 5h2M3 10h3M10 10h7M3 15h9M16 15h1"/><circle cx="13" cy="5" r="2"/><circle cx="8" cy="10" r="2"/><circle cx="14" cy="15" r="2"/></svg></button>
         <button class="shotbtn" id="shotBtn"><i></i>Add shot</button>
@@ -460,15 +459,7 @@ html.compact #panel{right:calc(6px + var(--sr,0px));bottom:calc(6px + var(--sb,0
     </div>
     <div id="placebar"><span id="placeTxt"></span><button id="placeDone">Done</button></div>
     <div id="vlabel"></div>
-    <div id="mTools" role="toolbar" aria-label="Modeling tools">
-      <span class="tl">Add</span>
-      <button data-add="box">Box</button><button data-add="cylinder">Cylinder</button><button data-add="sphere">Sphere</button><button data-add="cone">Cone</button><button data-add="pyramid">Pyramid</button><button data-add="wedge">Wedge</button>
-      <i class="sep"></i>
-      <button data-t="dup" title="Duplicate (Ctrl+D)">Duplicate</button><button data-t="mirror" title="Copy to the other side">Mirror</button><button data-t="turn" title="Turn 90°">Turn 90°</button><button data-t="drop" title="Drop onto whatever is below">Drop</button><button data-t="fit">Fit</button><button data-t="del" class="warn" title="Delete (Backspace)">Delete</button>
-    </div>
     <div id="castPop" role="dialog" aria-label="Cast"></div>
-    <div id="presetBar"></div>
-    <div id="presetList" role="menu"></div>
     <div id="mini"><canvas id="miniCv"></canvas><span id="miniTag">SHOTS</span><button id="miniBtn" aria-label="Open the shot board" title="Open the shot board">&#10530;</button></div>
     <div id="hint"></div>
   </div>
@@ -479,18 +470,13 @@ html.compact #panel{right:calc(6px + var(--sr,0px));bottom:calc(6px + var(--sb,0
       <button data-tab="cast">Cast</button>
       <button data-tab="camera">Camera</button>
       <button data-tab="shots">Shots<span class="badge" id="badge">0</span></button>
-      <button data-tab="model">Model</button>
-      <button data-tab="library">Library</button>
       <button data-tab="pose">Pose</button>
     </nav>
     <div id="tabbody">
-      <section data-tab="room"></section>
       <section data-tab="cast"></section>
       <section data-tab="camera"></section>
       <section data-tab="world" class="on"></section>
       <section data-tab="shots"></section>
-      <section data-tab="model"></section>
-      <section data-tab="library"></section>
       <section data-tab="pose"></section>
     </div>
     <div id="verLine"><span id="verTxt"></span><button id="verBtn" type="button">Check for updates</button></div>
@@ -519,7 +505,7 @@ const D2R=Math.PI/180, R2D=180/Math.PI;
 const $=(s,r=document)=>r.querySelector(s);
 /* Claude features (AI models, matching a still) work only inside the published Claude page */
 const HAS_AI=!!(window.claude&&typeof window.claude.use==='function');
-const APP_VERSION='20 (14 Nov 2026)';
+const APP_VERSION='21 (14 Nov 2026)';
 const clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
 const stage=$('#stage'), canvas=$('#gl');
 
@@ -624,7 +610,9 @@ function kelvin(K){
    Renderer + scene
    ===================================================================== */
 const renderer=new THREE.WebGLRenderer({canvas,antialias:true,preserveDrawingBuffer:true});
-renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
+/* phones: draw at up to 1.5x the screen's pixel density (an iPhone is 3x); plenty sharp and far lighter */
+const isTouch=matchMedia('(pointer: coarse)').matches;
+renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,isTouch?1.5:2));
 renderer.shadowMap.enabled=true;
 renderer.shadowMap.type=THREE.PCFSoftShadowMap;
 renderer.outputEncoding=THREE.sRGBEncoding;
@@ -637,7 +625,7 @@ scene.fog=new THREE.Fog(0x15161a,150,450);
 const hemi=new THREE.HemisphereLight(0xffffff,0x7a7468,.8); scene.add(hemi);
 const work=new THREE.HemisphereLight(0xffffff,0xffffff,0); scene.add(work);
 const sun=new THREE.DirectionalLight(0xffffff,1);
-sun.castShadow=true; sun.shadow.mapSize.set(2048,2048); sun.shadow.bias=-.0004;
+sun.castShadow=true; sun.shadow.mapSize.set(isTouch?1024:2048,isTouch?1024:2048); sun.shadow.bias=-.0004;
 sun.shadow.camera.near=1; sun.shadow.camera.far=170;
 scene.add(sun); scene.add(sun.target);
 const rim=new THREE.DirectionalLight(0xffffff,0); scene.add(rim); scene.add(rim.target);
@@ -1097,12 +1085,13 @@ function applyPose(c,p){
   if(c.pose==='stand'&&c.adj&&Object.keys(c.adj).length) groundFeet(c);
 }
 function stepPoses(dt){
-  const k=1-Math.exp(-dt*9);
+  const k=1-Math.exp(-dt*9); let moving=false;
   chars.forEach(c=>{
     const t=POSES[c.pose];
-    POSE_KEYS.forEach(key=>{const d=t[key]-c.cur[key]; c.cur[key]=Math.abs(d)>1e-4?c.cur[key]+d*k:t[key];});
+    POSE_KEYS.forEach(key=>{const d=t[key]-c.cur[key]; if(Math.abs(d)>2e-3){c.cur[key]+=d*k;moving=true;}else c.cur[key]=t[key];});
     applyPose(c,c.cur);
   });
+  return moving;
 }
 function addChar(o={},snap=true){
   if(chars.length>=MAX_CHARS) return null;
@@ -1773,7 +1762,7 @@ BUILD.room=function(it,g){
 };
 function applyDoor(g){const u=g.userData; if(!u.pivots) return; u.pivots.forEach(p=>{p.rotation.y=-u.cur/100*105*D2R;});}
 function setDoorTarget(it,snap){const g=itemObjs.get(it.id); if(!g||!g.userData.pivots) return; g.userData.tgt=it.doorOpen||0; if(snap){g.userData.cur=g.userData.tgt;applyDoor(g);}}
-function stepDoors(dt){itemObjs.forEach(g=>{const u=g.userData; if(u.pivots&&Math.abs(u.tgt-u.cur)>.01){u.cur+=(u.tgt-u.cur)*Math.min(1,dt*9); if(Math.abs(u.tgt-u.cur)<.3)u.cur=u.tgt; applyDoor(g);}});}
+function stepDoors(dt){let m=false;itemObjs.forEach(g=>{const u=g.userData; if(u.pivots&&Math.abs(u.tgt-u.cur)>.01){m=true;u.cur+=(u.tgt-u.cur)*Math.min(1,dt*9); if(Math.abs(u.tgt-u.cur)<.3)u.cur=u.tgt; applyDoor(g);}});return m;}
 function snapDoors(){itemObjs.forEach(g=>{if(g.userData.pivots){g.userData.cur=g.userData.tgt;applyDoor(g);}});}
 function toggleDoor(it){it.doorOpen=it.doorOpen>0?0:100; setDoorTarget(it);}
 function roomLook(shot,ortho){
@@ -1819,6 +1808,7 @@ function newItem(type,x,z,x2,z2){
   return it;
 }
 function rebuildWorld(items){
+  items=(items||[]).filter(it=>CATALOG[it.type]);        /* pieces that no longer exist (custom models) are dropped */
   world.items.forEach(unmountItem);
   world.items=items; itemSeq=1+items.reduce((m,i)=>Math.max(m,i.id||0),0);
   items.forEach(mountItem);
@@ -1839,22 +1829,7 @@ function fpOf(it){
 const itemOutline=new THREE.LineLoop(new THREE.BufferGeometry(),new THREE.LineBasicMaterial({color:C(0xf5c400),depthTest:false,depthWrite:false,toneMapped:false,fog:false}));
 itemOutline.geometry.setAttribute('position',new THREE.BufferAttribute(new Float32Array(12),3));
 itemOutline.renderOrder=25; itemOutline.frustumCulled=false; itemOutline.visible=false; scene.add(itemOutline);
-function updateItemOutline(){
-  if(focus==='group'&&grpOf(selGroup)){
-    const b=groupBox(selGroup), pa=itemOutline.geometry.attributes.position, m=.4;
-    [[b.x0-m,b.z0-m],[b.x1+m,b.z0-m],[b.x1+m,b.z1+m],[b.x0-m,b.z1+m]].forEach(([x,z],i)=>pa.setXYZ(i,x,.4,z));
-    pa.needsUpdate=true; itemOutline.userData.on=true; return;
-  }
-  const it=focus==='item'?world.items[selItem]:null;
-  if(!it){itemOutline.userData.on=false;return;}
-  itemOutline.userData.on=true;
-  const f=fpOf(it), r=f.rot*D2R, c=Math.cos(r), s=Math.sin(r), pa=itemOutline.geometry.attributes.position;
-  [[-1,-1],[1,-1],[1,1],[-1,1]].forEach(([a,b],i)=>{
-    const lx=a*f.w/2, lz=b*f.d/2;
-    pa.setXYZ(i,f.cx+lx*c+lz*s,.4,f.cz-lx*s+lz*c);
-  });
-  pa.needsUpdate=true;
-}
+function updateItemOutline(){itemOutline.userData.on=false;}
 
 /* lamps and lit windows follow the lighting */
 function worldLightLevel(){return clamp(1.15-(L.fill*.7+L.key.i*.75),0,1.2);}
@@ -2090,6 +2065,7 @@ const VIEW_HINT={
 };
 const VIEW_LABEL={top:'Top view: X and Z',front:'Front view: X and height',side:'Side view: Z and height'};
 function layoutOverlays(){
+  if(typeof wake==='function') wake();
   const w=stage.clientWidth,h=stage.clientHeight, fr=$('#frame'), pip=$('#pip'), tb=$('.topbar');
   $('#app').style.setProperty('--tb',(tb.offsetTop+tb.offsetHeight)+'px');
   if(view==='camera'){
@@ -2103,8 +2079,6 @@ function layoutOverlays(){
   }
   $('#sticks').style.display=((view==='camera'||view==='director')&&fly.sticks&&appMode!=='model'&&appMode!=='pose')?'block':'none';
   $('#fitBtn').style.display=isOrtho(view)?'block':'none';
-  $('#presetBar').style.display=(view==='camera')?'none':'flex';
-  if(view==='camera'&&worldCat){worldCat=null;renderPalette();}
   $('#stickBtn').style.display='none';
   $('#stickBtn').classList.toggle('on',fly.sticks);
   const vl=$('#vlabel'); vl.style.display=isOrtho(view)?'block':'none'; vl.textContent=VIEW_LABEL[view]||'';
@@ -2241,7 +2215,7 @@ function setLook(kind){
   }
   const sr=world.showRoom;
   stand.visible=!shot; gizmo.visible=dirk; disc.visible=dirk; standLine.visible=dirk||(ortho&&view!=='top');
-  grid.visible=!shot&&sr; selRing.visible=!shot&&sel>=0&&focus==='char'; beacon.visible=!shot&&beaconT>0&&sel>=0&&!!chars[sel];
+  grid.visible=!shot&&sr; selRing.visible=!shot&&sel>=0&&focus==='char'; beacon.visible=!shot&&beaconT>0&&sel>=0&&!!chars[sel]; camBeam.visible=!shot&&camBeamT>0; camBeam.position.set(cam.x,20,cam.z);
   itemOutline.visible=!shot&&!!itemOutline.userData.on;
   snapMark.visible=!shot&&!!snapMark.userData.want;
   markKey.g.visible=dirk&&L.key.i>.01; markRim.g.visible=dirk&&L.rim.i>.01;
@@ -2268,7 +2242,6 @@ function drawShot(){
 }
 function render(){
   const w=stage.clientWidth,h=stage.clientHeight; if(!w||!h) return;
-  if(appMode==='model'){renderModel(w,h);return;}
   if(appMode==='pose'){renderPose(w,h);return;}
   if(shotMode==='nodes') return;
   if(sel>=0&&chars[sel]){
@@ -2345,13 +2318,13 @@ function flight(dt){
   v.f+=(inp.fwd*spd-v.f)*k; v.r+=(inp.str*spd-v.r)*k; v.u+=(inp.thr*spd*.6-v.u)*k;
   v.yw+=(inp.yaw*fly.yawRate-v.yw)*k; v.tl+=(inp.tilt*45-v.tl)*k;
   for(const key in v) if(Math.abs(v[key])<.002) v[key]=0;
-  if(!v.f&&!v.r&&!v.u&&!v.yw&&!v.tl){uiAccum=0;return;}
+  if(!v.f&&!v.r&&!v.u&&!v.yw&&!v.tl){uiAccum=0;return false;}
   if(view==='director'&&appMode!=='model'&&appMode!=='pose'){
     const sp=Math.max(1.5,orbit.dist*.55)/Math.max(.3,fly.speed), s=Math.sin(orbit.az), c=Math.cos(orbit.az);
     orbit.target.x+=(-s*v.f+c*v.r)*sp*dt; orbit.target.z+=(-c*v.f-s*v.r)*sp*dt;
     orbit.target.y=clamp(orbit.target.y+v.u*sp*dt,0,200);
     orbit.az-=v.yw*D2R*dt; orbit.target.x=clamp(orbit.target.x,-WORLD_HALF,WORLD_HALF); orbit.target.z=clamp(orbit.target.z,-WORLD_HALF,WORLD_HALF);
-    return;
+    return true;
   }
   const y=cam.yaw*D2R, p=cam.pitch*D2R, cp=fly.pointing?Math.cos(p):1;
   cam.x+=(-Math.sin(y)*cp*v.f+Math.cos(y)*v.r)*dt;
@@ -2361,11 +2334,25 @@ function flight(dt){
   cam.yaw=wrap180(cam.yaw-v.yw*dt); cam.pitch=clamp(cam.pitch+v.tl*dt,-89,89);
   updateCamPose();
   uiAccum+=dt; if(uiAccum>.12){uiAccum=0;refreshUI();}
+  return true;
 }
 let last=performance.now();
+/* draw only while something is changing: touches, typing, moving, animating; a still scene costs nothing */
+var wakeUntil=0;
+function wake(ms){wakeUntil=Math.max(wakeUntil,performance.now()+(ms||800));}
+['pointerdown','pointermove','pointerup','wheel','keydown','keyup','input','change','click','touchmove'].forEach(ev=>window.addEventListener(ev,()=>wake(),{passive:true,capture:true}));
+document.addEventListener('visibilitychange',()=>wake(1200));
 function loop(now){
   const dt=Math.min(.05,(now-last)/1000); last=now;
-  flight(dt); stepGlide(dt); if(beaconT>0){beaconT-=dt;beacon.material.opacity=Math.min(.3,beaconT*.15)*(.75+.25*Math.sin(performance.now()/150));} stepPoses(dt); stepDoors(dt); syncRoads(); render();
+  let busy=flight(dt)||!!glide;
+  stepGlide(dt);
+  if(camBeamT>0){camBeamT-=dt;camBeam.material.opacity=Math.min(.3,camBeamT*.15)*(.75+.25*Math.sin(performance.now()/150));busy=true;}
+  if(beaconT>0){beaconT-=dt;beacon.material.opacity=Math.min(.3,beaconT*.15)*(.75+.25*Math.sin(performance.now()/150));busy=true;}
+  if(stepPoses(dt)) busy=true;
+  if(stepDoors(dt)) busy=true;
+  syncRoads();
+  if(busy) wake(300);
+  if(now<wakeUntil) render();
   requestAnimationFrame(loop);
 }
 
@@ -2374,7 +2361,7 @@ function loop(now){
    ===================================================================== */
 const ray=new THREE.Raycaster(), ndc=new THREE.Vector2(), floorPlane=new THREE.Plane(new THREE.Vector3(0,1,0),0), tmpV=new THREE.Vector3();
 const ptrs=new Map(); let mode=null, drag=null, pinch=null;
-function setRay(x,y){ndc.set(x/stage.clientWidth*2-1,-(y/stage.clientHeight)*2+1);ray.setFromCamera(ndc,(isOrtho(view)||(appMode==='model'&&mView!=='3d'))?orthoCam:orbitCam);}
+function setRay(x,y){ndc.set(x/stage.clientWidth*2-1,-(y/stage.clientHeight)*2+1);ray.setFromCamera(ndc,isOrtho(view)?orthoCam:orbitCam);}
 function floorPoint(x,y){setRay(x,y);return ray.ray.intersectPlane(floorPlane,tmpV)?tmpV.clone():null;}
 function visibleDeep(o){while(o){if(!o.visible)return false;o=o.parent;}return true;}
 function pick(x,y){
@@ -2424,16 +2411,6 @@ function groundXZ(x,y){
   if(view==='top'){const p=planePoint(x,y);return [p[0],p[1]];}
   const f=floorPoint(x,y); return f?[f.x,f.z]:null;
 }
-function startPlace(x,y){
-  const t=CATALOG[placing];
-  if(t&&t.line){
-    const p=groundXZ(x,y); if(!p) return;
-    const [x0,z0]=snapStart(p[0],p[1]);
-    draft={it:Object.assign({id:-1,type:placing,x:x0,z:z0,x2:x0,z2:z0,rot:0},JSON.parse(JSON.stringify(t.def))),group:null};
-    mode='draw'; return;
-  }
-  tap={kind:'place',x,y,moved:false}; mode='opan';
-}
 function startCharPlace(x,y){
   const p=groundXZ(x,y); if(!p) return;
   drag={sx:p[0],sz:p[1],px:x,py:y,c:null}; mode='cplace'; tap=null;
@@ -2450,7 +2427,7 @@ function ensurePlacedChar(){
     c=chars[sel]; if(!c){toast('Select a character first');return null;}
     c.x=clamp(drag.sx,-WORLD_HALF,WORLD_HALF); c.z=clamp(drag.sz,-WORLD_HALF,WORLD_HALF); placeChar(c);
   }
-  drag.c=c; renderChips(); renderItemEditor(); renderItemList(); refreshUI();
+  drag.c=c; renderChips(); refreshUI();
   return c;
 }
 function charPlaceMove(x,y){
@@ -2465,20 +2442,8 @@ function finishCharPlace(){
   if(drag&&!drag.c) ensurePlacedChar();
   if(placing==='@add'&&chars.length>=MAX_CHARS) setPlacing(null);
 }
-function drawMove(x,y){
-  const p=groundXZ(x,y); if(!p||!draft) return;
-  const [ex,ez]=snapEnd(draft.it.x,draft.it.z,p[0],p[1],-1);
-  draft.it.x2=ex; draft.it.z2=ez;
-  if(draft.group){scene.remove(draft.group);disposeGroup(draft.group);}
-  const g=buildGroup(draft.it); updateItemTransform(draft.it,g); scene.add(g); draft.group=g;
-}
-function cancelDraft(){if(draft&&draft.group){scene.remove(draft.group);disposeGroup(draft.group);}draft=null;}
-function commitDraft(){
-  const d=draft; cancelDraft(); if(!d) return;
-  if(Math.hypot(d.it.x2-d.it.x,d.it.z2-d.it.z)<1) return;
-  const it=newItem(d.it.type,d.it.x,d.it.z,d.it.x2,d.it.z2);
-  world.items.push(it); mountItem(it); selectItem(world.items.length-1); renderItemList();
-}
+function cancelDraft(){}
+/* flat views: drag the camera dot or its heading ring, drag characters, place characters */
 function startOrtho(x,y){
   const w=stage.clientWidth,h=stage.clientHeight;
   const scr=v=>{const q=v.clone().project(orthoCam);return {x:(q.x+1)/2*w,y:(1-q.y)/2*h};};
@@ -2488,37 +2453,18 @@ function startOrtho(x,y){
     const p=planePoint(x,y), [ca,cb]=toPlane(cam.x,cam.y,cam.z);
     drag={type:'cam2',oa:ca-p[0],ob:cb-p[1]}; mode='drag'; return;
   }
-  if(view==='front'&&hArr.visible&&near(scr(hArr.position),30)){
-    const it=world.items[selItem]; if(it){drag={type:'height'};mode='drag';return;}
-  }
-  if(view==='top'){
-    for(let i=0;i<4;i++) if(sizeAr[i].visible&&near(scr(sizeAr[i].position),30)){
-      const it=world.items[selItem]; if(it){drag={type:'resize',side:i,w0:it.w,d0:it.d,x0:it.x,z0:it.z};mode='drag';return;}
-    }
-    if(rotG.visible&&near(scr(rotG.position),30)){drag={type:'rot'};mode='drag';return;}
-    for(let i=0;i<2;i++) if(endG[i].visible&&near(scr(endG[i].position),30)){drag={type:'end',i};mode='drag';return;}
-    if(placing&&placing[0]!=='@'){startPlace(x,y);return;}
-  }
+  if(view==='top'&&rotG.visible&&near(scr(rotG.position),30)){drag={type:'rot'};mode='drag';return;}
   const hit=pick(x,y);
   if(hit&&hit.type==='char'){
     select(hit.idx); const c=chars[hit.idx]; armLongPress(hit.idx,x,y);
     if(view==='top'){const p=groundXZ(x,y);drag={type:'char',idx:hit.idx,dx:c.x-p[0],dz:c.z-p[1]};mode='drag';return;}
   }
-  if(placing&&placing[0]==='@'&&view==='top'){startCharPlace(x,y);return;}
-  if(hit&&hit.type==='item'){
-    if(!hit.door&&focus==='group'&&world.items[hit.idx].grp===selGroup&&view==='top'){beginGroupDrag(x,y,hit.idx);return;}
-    if(!hit.door&&hit.idx===selItem&&focus==='item'&&view==='top'){beginItemDrag(hit.idx,x,y);return;}
-    tap={kind:'item',idx:hit.idx,x,y,moved:false,door:hit.door}; mode='opan'; return;
-  }
+  if(placing&&view==='top'){startCharPlace(x,y);return;}
+  if(hit&&hit.type==='item'&&hit.door){tap={kind:'door',idx:hit.idx,x,y,moved:false};mode='opan';return;}
   tap={kind:'clear',x,y,moved:false}; mode='opan';
-}
-function beginItemDrag(idx,x,y){
-  const it=world.items[idx], p=groundXZ(x,y); if(!p){mode='opan';return;}
-  drag={type:'item',idx,dx:it.x-p[0],dz:it.z-p[1],lx:(it.x2||0)-it.x,lz:(it.z2||0)-it.z}; mode='drag';
 }
 function startSingle(x,y,e){
   drag=null; mode=null; tap=null;
-  if(appMode==='model'){modelPointerDown(x,y,e);return;}
   if(appMode==='pose'){posePointerDown(x,y,e);return;}
   if(view==='camera'){mode=(e.button===2||e.shiftKey)?'slide':'look';return;}
   if(isOrtho(view)){startOrtho(x,y);return;}
@@ -2526,34 +2472,22 @@ function startSingle(x,y,e){
   if(hit&&hit.type==='char'&&p){
     select(hit.idx); const c=chars[hit.idx]; armLongPress(hit.idx,x,y);
     drag={type:'char',idx:hit.idx,dx:c.x-p.x,dz:c.z-p.z}; mode='drag';
-  }else if(hit&&hit.type==='item'){
-    if(!hit.door&&focus==='group'&&world.items[hit.idx].grp===selGroup&&p) beginGroupDrag(x,y,hit.idx);
-    else if(!hit.door&&hit.idx===selItem&&focus==='item'&&p) beginItemDrag(hit.idx,x,y);
-    else{tap={kind:'item',idx:hit.idx,x,y,moved:false,door:hit.door};mode='orbit';}
   }else if(hit&&hit.type==='cam'&&p){
     drag={type:'cam',dx:cam.x-p.x,dz:cam.z-p.z}; mode='drag';
   }else{
     mode=(e.button===2||e.shiftKey)?'pan':'orbit';
-    if(mode==='orbit') tap={kind:'clear',x,y,moved:false};
+    if(mode==='orbit') tap=hit&&hit.type==='item'&&hit.door?{kind:'door',idx:hit.idx,x,y,moved:false}:{kind:'clear',x,y,moved:false};
   }
 }
 function doTap(){
   if(!tap||tap.moved) return;
-  if(tap.kind==='part'){selectPart(tap.idx);return;}
-  if(tap.kind==='item'){const di=world.items[tap.idx];if(tap.door&&di&&di.doorOpen!==undefined)toggleDoor(di);if(di&&di.grp&&grpOf(di.grp)&&!(focus==='group'&&selGroup===di.grp))selectGroup(di.grp);else selectItem(tap.idx);if(appMode==='build')gotoTab('world');}
-  else if(tap.kind==='clear'){
+  if(tap.kind==='door'){const di=world.items[tap.idx];if(di&&di.doorOpen!==undefined)toggleDoor(di);return;}
+  if(tap.kind==='clear'){
     const now=performance.now();
     if(view==='director'&&lastClear&&now-lastClear.t<350&&Math.hypot(tap.x-lastClear.x,tap.y-lastClear.y)<40){
       const p=floorPoint(tap.x,tap.y); if(p) glideTo(p.x,p.z); lastClear=null; return;
     }
     lastClear={t:now,x:tap.x,y:tap.y};
-    if(selItem>=0||focus==='group')selectItem(-1);
-  }
-  else if(tap.kind==='place'&&placing){
-    const p=groundXZ(tap.x,tap.y); if(!p) return;
-    const it=newItem(placing,snapV(p[0]),snapV(p[1]));
-    if(world.magnet) magnetPlace(it,p[0],p[1]);
-    world.items.push(it); mountItem(it); selectItem(world.items.length-1); renderItemList();
   }
 }
 let lockBlocked=false, lastLookUi=0;
@@ -2594,29 +2528,10 @@ canvas.addEventListener('pointerdown',e=>{
 });
 function dragMove(x,y){
   const lim=v=>clamp(v,-CAM_LIMIT,CAM_LIMIT);
-  if(drag.type==='part'||drag.type==='mres'){modelDragMove(x,y);return;}
   if(drag.type==='joint'){poseDragMove(x,y);return;}
   if(drag.type==='char'){
     const c=chars[drag.idx], p=groundXZ(x,y); if(!c||!p) return;
     c.x=clamp(p[0]+drag.dx,-WORLD_HALF,WORLD_HALF); c.z=clamp(p[1]+drag.dz,-WORLD_HALF,WORLD_HALF); placeChar(c);
-  }else if(drag.type==='group'){
-    const p=groundXZ(x,y); if(!p) return;
-    const tx=snapV(p[0]-drag.sx), tz=snapV(p[1]-drag.sz);
-    moveGroup(selGroup,tx-drag.dx,tz-drag.dz); drag.dx=tx; drag.dz=tz;
-  }else if(drag.type==='item'){
-    const it=world.items[drag.idx], p=groundXZ(x,y); if(!it||!p) return;
-    const line=CATALOG[it.type].line;
-    const nx=p[0]+drag.dx, nz=p[1]+drag.dz;
-    let gx=snapV(nx), gz=snapV(nz);
-    snapInfo.on=false;
-    if(world.magnet){
-      const T=snapTargets(it.id), R=magnetR();
-      const best=line?bestSnap([{p:[nx,nz]},{p:[nx+drag.lx,nz+drag.lz]},{p:[nx+drag.lx/2,nz+drag.lz/2]}],T,R,true):snapRect(it,nx,nz,it.rot,R,T);
-      if(best){gx=nx+best.dx;gz=nz+best.dz;snapInfo.on=true;snapInfo.x=best.x;snapInfo.z=best.z;}
-    }
-    it.x=clamp(gx,-WORLD_HALF,WORLD_HALF); it.z=clamp(gz,-WORLD_HALF,WORLD_HALF);
-    if(line){it.x2=it.x+drag.lx;it.z2=it.z+drag.lz;}
-    updateItemTransform(it);
   }else if(drag.type==='cam'){
     const p=groundXZ(x,y); if(!p) return;
     cam.x=lim(p[0]+drag.dx); cam.z=lim(p[1]+drag.dz); updateCamPose();
@@ -2637,37 +2552,9 @@ function dragMove(x,y){
     }
     updateCamPose();
   }else if(drag.type==='rot'){
-    const it=focus==='item'?world.items[selItem]:null, ch=focus==='char'?chars[sel]:null;
-    const f=it?fpOf(it):ch?{cx:ch.x,cz:ch.z}:null; if(!f) return;
-    const p=planePoint(x,y); if(Math.hypot(p[0]-f.cx,p[1]-f.cz)<.05) return;
-    let a=Math.atan2(p[0]-f.cx,p[1]-f.cz)*R2D, sr=null;
-    if(world.magnet) sr=snapRotDeg(snapTargets(it?it.id:-1),a);
-    if(sr!==null) a=sr; else if(world.snap) a=Math.round(a/15)*15;
-    a=wrap180(a);
-    if(it){it.rot=a;updateItemTransform(it);}else{ch.rot=a;placeChar(ch);}
-  }else if(drag.type==='resize'){
-    const it=world.items[selItem], U=it&&sizableUI(it); if(!U) return;
-    const p=planePoint(x,y), th=it.rot*D2R, c=Math.cos(th), sn=Math.sin(th);
-    const dx=p[0]-drag.x0, dz=p[1]-drag.z0, lx=dx*c-dz*sn, lz=dx*sn+dz*c;
-    const axX=drag.side<2, sg=drag.side%2===0?1:-1, l=axX?lx:lz, s0=axX?drag.w0:drag.d0, ui=axX?U.w:U.d;
-    let ns=Math.round((sg*l+s0/2)*2)/2; ns=clamp(ns,ui.min,ui.max);
-    const sh=sg*(ns-s0)/2;
-    if(axX){it.w=ns;it.x=drag.x0+c*sh;it.z=drag.z0-sn*sh;}else{it.d=ns;it.x=drag.x0+sn*sh;it.z=drag.z0+c*sh;}
-    rebuildItem(it);
-    $('#vlabel').textContent='W '+it.w.toFixed(1)+' m  x  D '+it.d.toFixed(1)+' m'+(it.h!==undefined?'  x  H '+it.h.toFixed(1)+' m':'');
-  }else if(drag.type==='height'){
-    const it=world.items[selItem], U=it&&sizableUI(it); if(!U||!U.h) return;
-    const p=planePoint(x,y);
-    it.h=clamp(Math.round(p[1]*2)/2,U.h.min,U.h.max); rebuildItem(it);
-    $('#vlabel').textContent='Height '+it.h.toFixed(1)+' m';
-  }else if(drag.type==='end'){
-    const it=world.items[selItem]; if(!it) return;
-    const p=planePoint(x,y), fromStart=drag.i===1;
-    const ax=fromStart?it.x:it.x2, az=fromStart?it.z:it.z2;
-    const [ex,ez]=snapEnd(ax,az,p[0],p[1],it.id);
-    if(fromStart){it.x2=ex;it.z2=ez;}else{it.x=ex;it.z=ez;}
-    if(Math.hypot(it.x2-it.x,it.z2-it.z)<.5) return;
-    rebuildItem(it);
+    const ch=chars[sel]; if(!ch) return;
+    const p=planePoint(x,y); if(Math.hypot(p[0]-ch.x,p[1]-ch.z)<.05) return;
+    ch.rot=wrap180(Math.round(Math.atan2(p[0]-ch.x,p[1]-ch.z)*R2D/15)*15); placeChar(ch);
   }
   refreshUI();
 }
@@ -2679,23 +2566,17 @@ canvas.addEventListener('pointermove',e=>{
   if(ptrs.size===1){
     if(mode==='orbit'){orbit.az-=dx*.007;orbit.pol=clamp(orbit.pol-dy*.007,.12,1.52);}
     else if(mode==='pan') panTarget(dx,dy);
-    else if(mode==='mpan'){const s=mOv[mView], wpp=s.span/stage.clientHeight; s.a-=dx*wpp; s.b+=(mView==='top'?-dy:dy)*wpp;}
     else if(mode==='opan'){
       const s=ov[view], wpp=s.span/stage.clientHeight;
       s.a-=dx*wpp; s.b+=(view==='top'?-dy:dy)*wpp;
     }
     else if(mode==='look') look(dx,dy);
     else if(mode==='slide') slideCam(dx,dy);
-    else if(mode==='draw') drawMove(x,y);
     else if(mode==='cplace') charPlaceMove(x,y);
     else if(mode==='drag'&&drag) dragMove(x,y);
   }else if(ptrs.size===2&&pinch){
     const [a,b]=[...ptrs.values()], d=Math.hypot(a.x-b.x,a.y-b.y), mx=(a.x+b.x)/2, my=(a.y+b.y)/2;
-    if(appMode==='model'&&mView!=='3d'){
-      const s=mOv[mView], wpp=s.span/stage.clientHeight;
-      s.span=clamp(s.span*(pinch.d/Math.max(d,1)),.4,120);
-      s.a-=(mx-pinch.mx)*wpp; s.b+=(mView==='top'?-(my-pinch.my):(my-pinch.my))*wpp;
-    }else if(view==='director'){
+    if(view==='director'){
       orbit.dist=clamp(orbit.dist*(pinch.d/Math.max(d,1)),minDist(),450);
       panTarget(mx-pinch.mx,my-pinch.my);
     }else if(isOrtho(view)){
@@ -2711,19 +2592,17 @@ function endPtr(e){
   if(ptrs.size===0){
     snapInfo.on=false;
     if(drag&&(drag.type==='resize'||drag.type==='height')) layoutOverlays();
-    if(drag&&(drag.type==='part'||drag.type==='mres')) modelChanged();
-    if(mode==='draw'&&draft) commitDraft(); else if(mode==='cplace') finishCharPlace(); else doTap();
+    if(mode==='cplace') finishCharPlace(); else doTap();
     mode=null; drag=null; pinch=null; tap=null;
   }else if(ptrs.size===1){
-    cancelDraft(); tap=null; mode=appMode==='model'&&mView!=='3d'?'mpan':view==='camera'?'look':isOrtho(view)?'opan':'orbit'; drag=null; pinch=null;
+    cancelDraft(); tap=null; mode=view==='camera'?'look':isOrtho(view)?'opan':'orbit'; drag=null; pinch=null;
   }
 }
 canvas.addEventListener('pointerup',endPtr);
 canvas.addEventListener('pointercancel',e=>{tap=null;cancelDraft();endPtr(e);});
 canvas.addEventListener('wheel',e=>{
   e.preventDefault();
-  if(appMode==='model'&&mView!=='3d'){const s=mOv[mView];s.span=clamp(s.span*Math.exp(e.deltaY*.0012),.4,120);}
-  else if(view==='director') orbit.dist=clamp(orbit.dist*Math.exp(e.deltaY*.0012),minDist(),450);
+  if(view==='director') orbit.dist=clamp(orbit.dist*Math.exp(e.deltaY*.0012),minDist(),450);
   else if(isOrtho(view)){const s=ov[view];s.span=clamp(s.span*Math.exp(e.deltaY*.0012),1.5,250);}
   else dolly(-e.deltaY*.004);
 },{passive:false});
@@ -2765,7 +2644,7 @@ $('#viewSeg').addEventListener('click',e=>{const b=e.target.closest('button');if
    UI building
    ===================================================================== */
 const syncs=[], dynSyncs=[];
-function refreshUI(){syncs.forEach(f=>f());dynSyncs.forEach(f=>f());}
+function refreshUI(){wake();syncs.forEach(f=>f());dynSyncs.forEach(f=>f());}
 function addSlider(parent,o,bucket=syncs){
   const row=document.createElement('label'); row.className='row';
   row.innerHTML='<span class="lbl">'+o.label+'</span><input type="range" step="'+o.step+'"><span class="val"><input type="number" class="num" inputmode="decimal" step="any"><span class="unit"></span></span>';
@@ -2844,44 +2723,26 @@ function gotoTab(n){
   if(m!==appMode){setAppMode(m);}
   const b=$('#tabs button[data-tab="'+n+'"]');if(b)b.click();
 }
-/* ---------- Modes: world building and directing ---------- */
-const MODE_TABS={build:['world','cast'],direct:['camera','shots'],model:['model','library'],pose:['pose']};
-const modeTab={build:'world',direct:'camera',model:'model',pose:'pose'};
+/* ---------- Modes: directing, and the posing studio ---------- */
+const MODE_TABS={direct:['world','cast','camera','shots'],pose:['pose']};
+const modeTab={direct:'camera',pose:'pose'};
 var appMode='';
 function setAppMode(m,init){
   if(m===appMode) return;
   const on=$('#tabs button.on'); if(appMode&&on) modeTab[appMode]=on.dataset.tab;
   const prev=appMode; appMode=m;
-  ['build','direct','model','pose'].forEach(k=>stage.classList.toggle('mode-'+k,m===k));
-  [...$('#modeSeg').children].forEach(b=>b.classList.toggle('on',b.dataset.m===m));
+  ['direct','pose'].forEach(k=>stage.classList.toggle('mode-'+k,m===k));
   [...$('#tabs').children].forEach(b=>b.classList.toggle('hide',!MODE_TABS[m].includes(b.dataset.tab)));
   const b=$('#tabs button[data-tab="'+modeTab[m]+'"]'); if(b) b.click();
   if(init) return;
   if(prev==='pose'&&poseChar) exitPose(true);
-  const studio=x=>x==='model'||x==='pose';
-  if(studio(prev)&&!studio(m)) swapOrbit(false);
-  if(prev==='model') flushInstances();
+  if(prev==='pose') swapOrbit(false);
   if(m==='pose'){
     if(placing) setPlacing(null);
-    if(worldCat){worldCat=null;renderPalette();}
     if(shotMode==='nodes') setShotMode('list');
     if(document.pointerLockElement){try{document.exitPointerLock();}catch(err){}}
-    setView('director'); if(!studio(prev)) swapOrbit(true);
-  }else if(m==='model'){
-    if(placing) setPlacing(null);
-    if(worldCat){worldCat=null;renderPalette();}
-    if(shotMode==='nodes') setShotMode('list');
-    if(document.pointerLockElement){try{document.exitPointerLock();}catch(err){}}
-    setView('director'); if(!studio(prev)) swapOrbit(true); mGroup.visible=true; setPanel(true);
-    if(!curModel&&models.length){curModel=models[models.length-1];rebuildModelView();renderModelPanel();renderLibrary();frameModel();}
-  }else if(m==='direct'){
-    if(placing) setPlacing(null);
-    if(worldCat){worldCat=null;renderPalette();}
-    setView('camera');
-  }else{
-    if(shotMode==='nodes') setShotMode('list');
-    if(view==='camera'||studio(prev)) setView('director');
-  }
+    setView('director'); swapOrbit(true);
+  }else if(prev==='pose') setView('director');
 }
 function setPanel(open){
   $('#app').classList.toggle('panelopen',open);
@@ -2889,48 +2750,6 @@ function setPanel(open){
   layoutOverlays();
 }
 $('#panelBtn').addEventListener('click',()=>setPanel(!$('#app').classList.contains('panelopen')));
-$('#mViewSeg').addEventListener('click',e=>{const b=e.target.closest('button');if(b)setModelView(b.dataset.mv);});
-$('#mTools').addEventListener('click',e=>{
-  const b=e.target.closest('button'); if(!b) return;
-  if(b.dataset.add){addPart(b.dataset.add);return;}
-  ({dup:dupPart,mirror:mirrorPart,turn:turnPart,drop:dropPart,fit:fitModelView,del:()=>{if(selP())deletePart();else toast('Select a part first');}})[b.dataset.t]();
-});
-$('#modeSeg').addEventListener('click',e=>{const b=e.target.closest('button');if(b){setAppMode(b.dataset.m);if(b.dataset.m!=='build'&&!$('#app').classList.contains('panelopen')&&b.dataset.m==='model')setPanel(true);}});
-
-/* ---------- Room tab ---------- */
-(function(){
-  const s=sec('room');
-  h3(s,'Room size');
-  addSlider(s,{label:'Width',min:2,max:14,step:.1,get:()=>room.w,set:v=>{room.w=v;setRoom();clampChars();},fmt:m1});
-  addSlider(s,{label:'Depth',min:2,max:24,step:.1,get:()=>room.d,set:v=>{room.d=v;setRoom();clampChars();},fmt:m1});
-  addSlider(s,{label:'Height',min:2,max:6,step:.1,get:()=>room.h,set:v=>{room.h=v;setRoom();},fmt:m1});
-  h3(s,'Presets');
-  const c=document.createElement('div'); c.className='chips'; s.appendChild(c);
-  [['Small',3,3,2.6],['Bedroom',4,3.5,2.7],['Living room',6,5,2.8],['Studio',10,8,4],['Hallway',2.4,14,2.7,'hall'],['Long hallway',2.8,22,3,'hall']].forEach(([n,w,d,h,kind])=>{
-    const b=document.createElement('button'); b.className='chip'; b.textContent=n+'  '+w+' × '+d;
-    b.addEventListener('click',()=>{
-      Object.assign(room,{w,d,h,kind:kind||'room'});
-      if(kind==='hall'){room.open.front=true;Object.assign(cam,{x:0,y:1.5,z:d/2-.7,yaw:0,pitch:0,roll:0});updateCamPose();}
-      setRoom();clampChars();fitDirector();refreshUI();
-    });
-    c.appendChild(b);
-  });
-  h3(s,'Open walls');
-  const ow=document.createElement('div'); ow.className='chips'; s.appendChild(ow);
-  [['front','Front'],['back','Back'],['left','Left'],['right','Right'],['ceil','Ceiling']].forEach(([k,l])=>{
-    const b=document.createElement('button'); b.className='chip'; b.textContent=l; b.dataset.k=k;
-    b.addEventListener('click',()=>{room.open[k]=!room.open[k];setRoom();refreshUI();});
-    ow.appendChild(b);
-  });
-  syncs.push(()=>[...ow.children].forEach(b=>b.classList.toggle('on',!!room.open[b.dataset.k])));
-  addNote(s,'Highlighted walls are removed, so you can film straight into the room. The front is open by default.');
-  h3(s,'Details');
-  addToggle(s,'Doors and window',()=>room.props,v=>{room.props=v;setRoom();});
-  addToggle(s,'Solid walls in Camera view',()=>room.solid,v=>{room.solid=v;});
-  addToggle(s,'Landscape layout on portrait screens',()=>forceLandscape,v=>{forceLandscape=v;applyLayout();});
-  addNote(s,'With solid walls on, a camera outside the room sees the outside of the walls that are still standing. Turn it off to shoot through them. Director view always shows the cutaway.');
-})();
-
 /* ---------- Cast tab ---------- */
 const castChips=document.createElement('div'); castChips.className='list castlist';
 const castCtl=document.createElement('div');
@@ -3095,157 +2914,7 @@ function loadPicture(file,maxDim){
     im.src=url;
   });
 }
-const dataURLBlob=d=>{const [h,b]=d.split(',');const bin=atob(b),u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);return new Blob([u],{type:(h.match(/data:([^;]+)/)||[])[1]||'image/jpeg'});};
-const still={src:null,w:0,h:0,show:true,opacity:.5};
-let pickStill=()=>{};
-function applyStill(){
-  const im=$('#stillImg'), rb=$('#refBtn');
-  if(rb){rb.classList.toggle('on',!!still.src&&still.show);rb.textContent=still.src?(still.show?'Reference on':'Reference off'):'Reference';}
-  if(!still.src){im.style.display='none';im.removeAttribute('src');return;}
-  if(im.getAttribute('src')!==still.src) im.src=still.src;
-  im.style.display=still.show?'block':'none'; im.style.opacity=still.opacity;
-}
 function nearestAspect(r){return Object.keys(ASPECTS).reduce((a,k)=>Math.abs(Math.log(ASPECTS[k]/r))<Math.abs(Math.log(ASPECTS[a]/r))?k:a,'16:9');}
-const nearestLens=mm=>LENSES.reduce((a,l)=>Math.abs(Math.log(l/mm))<Math.abs(Math.log(a/mm))?l:a,50);
-const STILL_PROMPT='You are a cinematographer helping a previs app recreate a shot. Study the attached film still and estimate how it was filmed.\n'+
-'Reply with only one JSON object:\n'+
-'{"aspect": "2.39:1" or "16:9" or "17:9" or "3:2", "focal_mm": 35, "camera_height_m": 1.6, "tilt_deg": -5, "horizon_tilt_deg": 0, "shot": "wide", '+
-'"subjects": [{"x": 0.5, "distance_m": 4, "pose": "stand", "facing": "camera"}], "setting": "a few words", "notes": "one short sentence about the framing"}\n'+
-'Rules:\n- focal_mm is the full-frame (36 mm wide sensor) equivalent focal length.\n- camera_height_m is the lens height above the ground.\n'+
-'- tilt_deg: positive when the camera looks up, negative when it looks down.\n- horizon_tilt_deg: positive when the horizon rises toward the right of the frame (a Dutch angle), else 0.\n'+
-'- shot is one of: extreme wide, wide, full, medium, medium close-up, close-up, extreme close-up.\n'+
-'- subjects: the people in the frame, nearest first, at most 4. x is the horizontal centre of the person in the frame (0 left edge, 1 right edge). distance_m is how far they are from the camera, assuming people are about 1.75 m tall. pose is stand, sit or lay. facing is one of: camera, away, left, right, three-quarter left, three-quarter right (as seen in the frame).\n'+
-'- If there are no people, use an empty list. Give your best estimate even when unsure.';
-/* ---------- Build a whole scene from a picture ---------- */
-const CLAUDE_URL='https://claude.ai/artifact/Ch9v82QFnCaBG2wqZ9BBsg';
-function claudeOnly(parent,what){
-  addNote(parent,what+' needs Claude, so it works in the Claude version of this app (your work there is saved separately).');
-  const b=document.createElement('div'); b.className='btns'; parent.appendChild(b);
-  addBtn(b,'Open the Claude version','primary',()=>{window.open(CLAUDE_URL,'_blank','noopener');});
-}
-const SCENE_TYPES={
-  line:['road','sidewalk','wall','fence'],
-  building:['house','apartment','shop','tower','warehouse'],
-  area:['room','block','pavement','crosswalk'],
-  prop:['tree','pine','bush','rock','car','van','bench','lamp','traffic','busstop','sign','hydrant','bin','cone']
-};
-const SCENE_PROMPT='You are a production designer and cinematographer helping a previs app rebuild the attached picture as a simple 3D set.\n'+
-'Reply with only one JSON object:\n'+
-'{"setting": "2 to 4 words", "aspect": "16:9", "focal_mm": 35, "camera_height_m": 1.6, "tilt_deg": 0, "horizon_tilt_deg": 0, "shot": "wide",\n'+
-' "subjects": [{"x": 0.5, "distance_m": 6, "pose": "stand", "facing": "camera"}],\n'+
-' "objects": [{"type": "house", "at": [-6, 18], "turn_deg": 0, "w": 9, "d": 10, "h": 7, "roof": "gable", "color": "#c97b5a"},\n'+
-'             {"type": "road", "from": [-30, 8], "to": [30, 8], "w": 7, "sidewalks": true},\n'+
-'             {"type": "tree", "at": [5, 12], "size": 1.2}]}\n'+
-'Coordinates are metres on the ground relative to the camera: [right, forward]. right is negative to the left of the camera; forward is straight ahead along the ground.\n'+
-'turn_deg: 0 means the object\'s front faces the camera; 90 means its front faces the right of the frame.\n'+
-'Object types:\n'+
-'- lines (use "from" and "to"): road (w = width incl. lanes, 3-24, "sidewalks": true/false), sidewalk (w 1-10), wall (h height), fence (h height)\n'+
-'- buildings (use "at", "turn_deg", w, d, h in metres, "roof": "flat" or "gable", "color"): house, apartment, shop, tower, warehouse\n'+
-'- areas (use "at", "turn_deg", w, d): room (an interior with walls; add h; put the camera inside it for indoor shots), block (a plain box; add h and color), pavement, crosswalk\n'+
-'- props (use "at", "turn_deg", "size" 0.5-3 where 1 is normal, optional "color"): tree, pine, bush, rock, car, van, bench, lamp (street lamp), traffic (traffic light), busstop, sign (stop sign), hydrant, bin, cone\n'+
-'Other fields mean the same as for matching a camera: focal_mm is the full-frame equivalent; tilt_deg positive looks up; horizon_tilt_deg positive when the horizon rises to the right; subjects are the people (at most 4, nearest first), x is their horizontal centre in the frame from 0 (left) to 1 (right), distance_m assumes people are about 1.75 m tall, pose is stand/sit/lay, facing is camera/away/left/right/three-quarter left/three-quarter right.\n'+
-'Include the main visible things and anything that shapes the space (up to 60 objects), at believable real-world sizes and distances. Use the closest type when nothing matches exactly.';
-/* camera and people from a guess (shared by "match a still" and "build a scene") */
-function applyShotGuess(r){
-  const n=(v,a,b,d)=>{v=Number(v);return isFinite(v)?clamp(v,a,b):d;};
-  cam.aspect=ASPECTS[r.aspect]?r.aspect:nearestAspect(still.w/Math.max(1,still.h)||16/9);
-  cam.lens=nearestLens(n(r.focal_mm,8,400,50));
-  cam.y=n(r.camera_height_m,.1,CAM_MAX_H,1.6); cam.pitch=n(r.tilt_deg,-89,89,0); cam.roll=-n(r.horizon_tilt_deg,-45,45,0);
-  updateShotCam();
-  const subs=(Array.isArray(r.subjects)?r.subjects:[]).slice(0,MAX_CHARS), hf=optics().hf, y=cam.yaw*D2R;
-  const F=[-Math.sin(y),-Math.cos(y)], Rt=[Math.cos(y),-Math.sin(y)];
-  subs.forEach((sj,i)=>{
-    let c=chars[i]||addChar({}); if(!c) return;
-    const d=n(sj.distance_m,.5,120,4), a=(n(sj.x,0,1,.5)-.5)*hf*D2R, gd=Math.max(.3,Math.sqrt(Math.max(0,d*d-Math.pow(cam.y-1.2,2))));
-    c.x=clamp(cam.x+F[0]*gd*Math.cos(a)+Rt[0]*gd*Math.sin(a),-WORLD_HALF,WORLD_HALF);
-    c.z=clamp(cam.z+F[1]*gd*Math.cos(a)+Rt[1]*gd*Math.sin(a),-WORLD_HALF,WORLD_HALF);
-    const tc=[cam.x-c.x,cam.z-c.z], L=Math.hypot(tc[0],tc[1])||1; tc[0]/=L; tc[1]/=L;
-    const f=String(sj.facing||'camera').toLowerCase();
-    const dir=f==='away'?[-tc[0],-tc[1]]:f==='left'?[-Rt[0],-Rt[1]]:f==='right'?Rt:f.includes('left')?[tc[0]-Rt[0],tc[1]-Rt[1]]:f.includes('right')?[tc[0]+Rt[0],tc[1]+Rt[1]]:tc;
-    c.rot=Math.atan2(dir[0],dir[1])*R2D;
-    if(POSES[sj.pose]) c.pose=sj.pose;
-    placeChar(c);
-  });
-  /* characters the picture doesn't need step out of shot, behind the camera */
-  chars.slice(subs.length).forEach((c,k)=>{c.x=clamp(cam.x-F[0]*2.5+Rt[0]*(k-1)*1.2,-WORLD_HALF,WORLD_HALF);c.z=clamp(cam.z-F[1]*2.5+Rt[1]*(k-1)*1.2,-WORLD_HALF,WORLD_HALF);placeChar(c);});
-  renderChips();
-  const lensNote=Math.round(n(r.focal_mm,8,400,50))!==cam.lens?' (closest to the '+Math.round(r.focal_mm)+' mm it guessed)':'';
-  return {people:subs.length,msg:(r.shot||'shot')+', '+cam.lens+' mm'+lensNote+', camera '+cam.y.toFixed(1)+' m high, tilt '+Math.round(cam.pitch)+'°'};
-}
-function buildSceneObjects(list){
-  const y=cam.yaw*D2R, F=[-Math.sin(y),-Math.cos(y)], Rt=[Math.cos(y),-Math.sin(y)];
-  const W=p=>Array.isArray(p)&&p.length>=2&&isFinite(+p[0])&&isFinite(+p[1])?[clamp(cam.x+Rt[0]*p[0]+F[0]*p[1],-WORLD_HALF,WORLD_HALF),clamp(cam.z+Rt[1]*p[0]+F[1]*p[1],-WORLD_HALF,WORLD_HALF)]:null;
-  const allowed=new Set([].concat(...Object.values(SCENE_TYPES)));
-  const made=[];
-  (Array.isArray(list)?list:[]).slice(0,60).forEach(o=>{
-    if(!o||!allowed.has(o.type)||!CATALOG[o.type]) return;
-    const t=CATALOG[o.type], rng=k=>{const u=(t.ui||[]).find(u=>u.k===k&&u.min!==undefined);return u?[u.min,u.max]:[.1,200];};
-    const num=(k,v)=>{v=Number(v);if(!isFinite(v))return;const [a,b]=rng(k);return clamp(v,a,b);};
-    let it;
-    if(t.line){
-      const a=W(o.from), b=W(o.to); if(!a||!b||Math.hypot(b[0]-a[0],b[1]-a[1])<.5) return;
-      it=newItem(o.type,a[0],a[1],b[0],b[1]);
-      if(num('w',o.w)!==undefined&&it.w!==undefined) it.w=num('w',o.w);
-      if(num('h',o.h)!==undefined&&it.h!==undefined) it.h=num('h',o.h);
-      if(typeof o.sidewalks==='boolean'&&it.walk!==undefined) it.walk=o.sidewalks;
-    }else{
-      const a=W(o.at); if(!a) return;
-      it=newItem(o.type,a[0],a[1]);
-      const tc=[cam.x-a[0],cam.z-a[1]], L=Math.hypot(tc[0],tc[1])||1, tr=(Number(o.turn_deg)||0)*D2R;
-      const dir=[Math.cos(tr)*tc[0]/L+Math.sin(tr)*Rt[0],Math.cos(tr)*tc[1]/L+Math.sin(tr)*Rt[1]];
-      it.rot=Math.round(Math.atan2(dir[0],dir[1])*R2D);
-      ['w','d','h'].forEach(k=>{const v=num(k,o[k]);if(v!==undefined&&it[k]!==undefined)it[k]=v;});
-      if(it.s!==undefined){const v=Number(o.size);if(isFinite(v))it.s=clamp(v,.5,3);}
-      if(it.roof!==undefined&&(o.roof==='flat'||o.roof==='gable')) it.roof=o.roof;
-    }
-    if(it.color!==undefined&&hexOk(o.color)) it.color=o.color.toLowerCase();
-    world.items.push(it); mountItem(it); made.push(it);
-  });
-  return made;
-}
-async function buildSceneFromPicture(file,fresh,say){
-  const sample=await getSampler();
-  if(!sample){say('This needs the Claude version of the app.');return;}
-  const lim=await sample.limits().catch(()=>null);
-  if(!lim||!lim.images){say('Picture reading is not available here.');return;}
-  let pic; try{pic=await loadPicture(file,1280);}catch(err){say('That file could not be opened as a picture.');return;}
-  Object.assign(still,{src:pic.dataURL,w:pic.w,h:pic.h,show:true,opacity:.35}); applyStill();
-  say('Studying the picture…');
-  try{
-    const r=await sample.json(SCENE_PROMPT,{images:[dataURLBlob(pic.dataURL)],onText:({text})=>say('Laying out the set… '+text.length+' characters so far')});
-    if(!r||typeof r!=='object') throw {code:'invalid_json'};
-    if(fresh){world.items.slice().forEach(unmountItem);world.items=[];world.groups=[];selItem=-1;selGroup=null;if(focus!=='char')focus='char';}
-    const made=buildSceneObjects(r.objects);
-    const shot=applyShotGuess(r);
-    let g=null; if(made.length){g=makeGroup(made,(typeof r.setting==='string'&&r.setting.trim()?r.setting.trim():'Scene from picture').slice(0,30));}
-    renderItemEditor(); renderItemList(); refreshUI(); setView('camera'); later(30); autosave();
-    say('Built '+made.length+' object'+(made.length===1?'':'s')+(g?' in the group "'+g.name+'"':'')+', '+shot.people+' '+(shot.people===1?'person':'people')+', '+shot.msg+'. The picture is shown see-through over the camera frame to compare (Camera tab > Match a film still).');
-  }catch(e){
-    const c=e&&e.code;
-    say(c==='rate_limited'?'Too many requests right now. Try again in a minute.':c==='invalid_json'?'The answer could not be read. Try again.':
-      c==='image_rejected'?'That picture could not be used. Try a JPEG or PNG.':(c==='not_granted'||c==='sampling_disabled'||c==='images_unavailable')?'Picture reading is not available here.':'Something went wrong. Try again.');
-  }
-}
-
-async function matchStill(say){
-  if(!still.src){say('Choose a still first.');return;}
-  const sample=await getSampler();
-  if(!sample){say('Matching needs the Claude version of this app. You can still line the shot up by hand with the see-through still.');return;}
-  const lim=await sample.limits().catch(()=>null);
-  if(!lim||!lim.images){say('Picture reading is not available here.');return;}
-  say('Studying the still…');
-  try{
-    const r=await sample.json(STILL_PROMPT,{images:[dataURLBlob(still.src)],onText:()=>say('Working out the lens and camera position…')});
-    if(!r||typeof r!=='object') throw {code:'invalid_json'};
-    const res=applyShotGuess(r);
-    refreshUI(); setView('camera'); later(30);
-    say('Matched: '+res.msg+'. '+(res.people?res.people+' '+(res.people>1?'people':'person')+' placed. ':'')+(typeof r.notes==='string'?r.notes.slice(0,160):''));
-  }catch(e){
-    const c=e&&e.code;
-    say(c==='rate_limited'?'Too many requests right now. Try again in a minute.':c==='invalid_json'?'The answer could not be read. Try again.':
-      c==='image_rejected'?'That picture could not be used. Try a JPEG or PNG.':(c==='not_granted'||c==='sampling_disabled'||c==='images_unavailable')?'Picture reading is not available here.':'Something went wrong. Try again.');
-  }
-}
 
 /* ---------- Camera tab ---------- */
 (function(){
@@ -3257,32 +2926,6 @@ async function matchStill(say){
   addSeg(s,Object.keys(ASPECTS).map(k=>[k,k]),()=>cam.aspect,v=>{cam.aspect=v;updateShotCam();});
   const ro=document.createElement('div'); ro.className='readout'; ro.style.marginTop='10px'; s.appendChild(ro);
   syncs.push(()=>{const o=optics();ro.innerHTML='Sensor <b>'+SENSOR_W.toFixed(1)+' × '+o.sh.toFixed(1)+' mm</b> full frame<br>Field of view <b>'+o.hf.toFixed(1)+'°</b> wide, <b>'+o.vf.toFixed(1)+'°</b> tall';});
-
-  /* match a film still */
-  const ms=folder(s,'Match a film still',false,false);
-  addNote(ms,HAS_AI?'Choose a frame from a film. It appears see-through over your camera frame, and Claude can set the lens, height, angle and place your characters to match.':'Choose a frame from a film. It appears see-through over your camera frame so you can line your shot up with it.');
-  const fin=document.createElement('input'); fin.type='file'; fin.accept='image/*'; fin.hidden=true; ms.appendChild(fin);
-  const prev=document.createElement('img'); prev.alt='Your film still'; prev.style.cssText='width:100%;border-radius:8px;display:none;margin:6px 0;background:#000'; ms.appendChild(prev);
-  const mb=document.createElement('div'); mb.className='btns'; ms.appendChild(mb);
-  const st=addNote(ms,''); st.classList.add('keep'); st.setAttribute('aria-live','polite');
-  const say=t=>{st.textContent=t;};
-  addBtn(mb,'Choose a still…','',()=>fin.click());
-  pickStill=()=>fin.click();
-  let matchBtn=null;
-  if(HAS_AI) matchBtn=addBtn(mb,'Match the camera','primary',async()=>{matchBtn.disabled=true;await matchStill(say);matchBtn.disabled=false;});
-  else claudeOnly(ms,'Matching the camera automatically');
-  const rm=addBtn(mb,'Remove','warn',()=>{still.src=null;applyStill();refreshUI();autosave();say('');});
-  fin.addEventListener('change',async()=>{
-    const f=fin.files[0]; fin.value=''; if(!f) return;
-    try{
-      const pic=await loadPicture(f,1280); Object.assign(still,{src:pic.dataURL,w:pic.w,h:pic.h,show:true});
-      cam.aspect=nearestAspect(pic.w/pic.h); updateShotCam(); setView('camera'); applyStill(); refreshUI(); autosave();
-      say('Frame shape set to '+cam.aspect+'. '+(HAS_AI?'Tap Match the camera, or line it up by hand.':'Line your shot up with it by hand.'));
-    }catch(err){say('That file could not be opened as a picture.');}
-  });
-  addToggle(ms,'Show the still over the frame',()=>still.show,v=>{still.show=v;applyStill();});
-  addSlider(ms,{label:'See-through',min:.1,max:1,step:.05,get:()=>still.opacity,set:v=>{still.opacity=v;applyStill();},fmt:v=>Math.round(v*100)+'%'});
-  syncs.push(()=>{prev.style.display=still.src?'block':'none';if(still.src&&prev.getAttribute('src')!==still.src)prev.src=still.src;rm.style.display=still.src?'':'none';if(matchBtn)matchBtn.style.display=still.src?'':'none';});
 
   const fd=document.createElement('details'); fd.className='more';
   const fsum=document.createElement('summary'); fsum.textContent='How to move the camera'; fd.appendChild(fsum);
@@ -3313,861 +2956,58 @@ async function matchStill(say){
   addNote(s,'Lenses are modeled as rectilinear full-frame optics. Depth of field is not simulated.');
 })();
 
-/* ---------- World tab ---------- */
-var worldCat=null;
-const palette=document.createElement('div'), itemEd=document.createElement('div'), itemList=document.createElement('div');
-palette.className='chips'; itemList.className='list';
+/* ---------- World tab: choose a world to direct in ---------- */
+var selGroup=null;
 function setPlacing(type){
   placing=type;
   stage.classList.toggle('placing',!!type);
   if(type){
-    const ch=type[0]==='@';
-    $('#placeTxt').textContent=ch?(type==='@add'?'Tap the map to add a character':'Tap the map to move '+(chars[sel]?chars[sel].name:'a character')):'Placing '+CATALOG[type].label;
+    $('#placeTxt').textContent=type==='@add'?'Tap the map to add a character':'Tap the map to move '+(chars[sel]?chars[sel].name:'a character');
     if(view!=='top') setView('top');
-    hint(ch?'Tap to place':CATALOG[type].line?'Drag to draw':'Tap to place');
+    hint('Tap to place');
   }
-  renderPalette();
 }
 $('#placeDone').addEventListener('click',()=>setPlacing(null));
-function renderPalette(reset){
-  const bar=$('#presetBar'), list=$('#presetList'), keep=bar.scrollLeft; bar.innerHTML='';
-  const activeCat=placing&&placing[0]!=='@'&&CATALOG[placing]?CATALOG[placing].cat:null;
-  let openBtn=null;
-  CATS.forEach(c=>{
-    const b=document.createElement('button'); b.className='pcat'+(c===worldCat?' on':'')+(c===activeCat?' act':'');
-    b.textContent=c+(c===worldCat?' ▴':' ▾'); b.setAttribute('aria-expanded',c===worldCat?'true':'false');
-    b.addEventListener('click',()=>{worldCat=worldCat===c?null:c;renderPalette();});
-    bar.appendChild(b); if(c===worldCat) openBtn=b;
-  });
-  bar.scrollLeft=reset?0:keep;
-  list.innerHTML='';
-  if(!worldCat){list.style.display='none';return;}
-  const hd=document.createElement('div'); hd.className='phead'; hd.textContent=worldCat; list.appendChild(hd);
-  Object.keys(CATALOG).filter(k=>CATALOG[k].cat===worldCat&&!CATALOG[k].hidden).forEach(k=>{
-    const b=document.createElement('button'); b.setAttribute('role','menuitem'); b.className=placing===k?'on':''; b.textContent=CATALOG[k].label;
-    b.addEventListener('click',()=>{worldCat=null;setPlacing(placing===k?null:k);});
-    list.appendChild(b);
-  });
-  list.style.display='flex';
-  positionPresetList(openBtn);
-}
-function positionPresetList(btn){
-  const bar=$('#presetBar'), list=$('#presetList');
-  btn=btn||[...bar.children].find(b=>b.classList.contains('on')); if(!btn||list.style.display==='none') return;
-  const x=bar.offsetLeft+btn.offsetLeft-bar.scrollLeft;
-  list.style.left=Math.max(10+safeApp.l,Math.min(x,stage.clientWidth-list.offsetWidth-10-safeApp.r))+'px';
-}
-$('#presetBar').addEventListener('scroll',()=>positionPresetList());
-canvas.addEventListener('pointerdown',()=>{if(worldCat){worldCat=null;renderPalette();}});
-function itemName(it,i){
-  const same=world.items.slice(0,i+1).filter(x=>x.type===it.type).length;
-  return CATALOG[it.type].label+' '+same;
-}
-/* ---------- Groups: keep a street, a block or a set of props together ---------- */
-let selGroup=null, pickMode=false;
-const pickSet=new Set();
-const grpOf=id=>world.groups.find(g=>g.id===id);
-const grpItems=id=>world.items.filter(it=>it.grp===id);
-function pruneGroups(){
-  world.groups=world.groups.filter(g=>world.items.some(it=>it.grp===g.id));
-  world.items.forEach(it=>{if(it.grp&&!grpOf(it.grp))delete it.grp;});
-  if(selGroup&&!grpOf(selGroup)){selGroup=null;if(focus==='group')focus='char';}
-}
-function newGroupId(){return 1+world.groups.reduce((m,g)=>Math.max(m,g.id),0);}
-function makeGroup(items,name){
-  const g={id:newGroupId(),name:name||('Group '+(world.groups.length+1)),open:true};
-  world.groups.push(g); items.forEach(it=>{it.grp=g.id;}); pruneGroups(); return g;
-}
-function selectGroup(id){selGroup=id;selItem=-1;focus=id?'group':'char';renderItemEditor();renderItemList();refreshUI();}
-function groupBox(id){
-  let x0=Infinity,z0=Infinity,x1=-Infinity,z1=-Infinity;
-  grpItems(id).forEach(it=>{const R=rectPts(fpOf(it));R.corners.forEach(([x,z])=>{x0=Math.min(x0,x);x1=Math.max(x1,x);z0=Math.min(z0,z);z1=Math.max(z1,z);});});
-  return {x0,z0,x1,z1,cx:(x0+x1)/2,cz:(z0+z1)/2};
-}
-function moveGroup(id,dx,dz){
-  grpItems(id).forEach(it=>{it.x+=dx;it.z+=dz;if(CATALOG[it.type].line){it.x2+=dx;it.z2+=dz;}updateItemTransform(it);});
-}
-function turnGroup(id,deg){
-  const b=groupBox(id), a=-deg*D2R, c=Math.cos(a), s=Math.sin(a);
-  const rot=(x,z)=>{const dx=x-b.cx,dz=z-b.cz;return [b.cx+dx*c-dz*s,b.cz+dx*s+dz*c];};
-  grpItems(id).forEach(it=>{
-    [it.x,it.z]=rot(it.x,it.z);
-    if(CATALOG[it.type].line)[it.x2,it.z2]=rot(it.x2,it.z2); else it.rot=wrap180((it.rot||0)+deg);
-    updateItemTransform(it);
-  });
-}
-function deleteGroup(id){
-  grpItems(id).forEach(it=>{unmountItem(it);world.items.splice(world.items.indexOf(it),1);});
-  world.groups=world.groups.filter(g=>g.id!==id); selectGroup(null);
-}
-function duplicateGroup(id){
-  const g0=grpOf(id), g={id:newGroupId(),name:(g0.name+' copy').slice(0,30),open:true}; world.groups.push(g);
-  const b=groupBox(id), off=Math.max(4,Math.round((b.x1-b.x0)+2));
-  grpItems(id).forEach(it=>{const c=JSON.parse(JSON.stringify(it));c.id=itemSeq++;c.grp=g.id;c.x+=off;if(CATALOG[c.type].line)c.x2+=off;world.items.push(c);mountItem(c);});
-  selectGroup(g.id);
-}
-function beginGroupDrag(x,y,idx){
-  const p=groundXZ(x,y); if(!p){mode='opan';return;}
-  drag={type:'group',sx:p[0],sz:p[1],dx:0,dz:0}; mode='drag';
-  if(idx!==undefined) tap={kind:'item',idx,x,y,moved:false};      /* a tap without dragging picks just this object */
-}
-function renderGroupEditor(){
-  const g=grpOf(selGroup); if(!g) return false;
-  const B=dynSyncs;
-  const hd=document.createElement('div'); hd.className='itemhd'; hd.textContent=g.name; itemEd.appendChild(hd);
-  addNote(itemEd,grpItems(g.id).length+' objects. Drag any of them in Top view to move the whole group. Tap one again to pick just that object.');
-  const nm=document.createElement('input'); nm.className='field'; nm.maxLength=30; nm.value=g.name; nm.setAttribute('aria-label','Group name'); itemEd.appendChild(nm);
-  nm.addEventListener('input',()=>{g.name=nm.value||'Group';hd.textContent=g.name;renderItemList();});
-  const b=()=>groupBox(g.id);
-  addSlider(itemEd,{label:'Left / right',min:-WORLD_HALF,max:WORLD_HALF,step:.5,get:()=>+b().cx.toFixed(2),set:v=>moveGroup(g.id,v-b().cx,0),fmt:m1},B);
-  addSlider(itemEd,{label:'Back / front',min:-WORLD_HALF,max:WORLD_HALF,step:.5,get:()=>+b().cz.toFixed(2),set:v=>moveGroup(g.id,0,v-b().cz),fmt:m1},B);
-  const bt=document.createElement('div'); bt.className='btns'; itemEd.appendChild(bt);
-  addBtn(bt,'Turn left 15°','',()=>{turnGroup(g.id,15);refreshUI();});
-  addBtn(bt,'Turn right 15°','',()=>{turnGroup(g.id,-15);refreshUI();});
-  addBtn(bt,'Turn 90°','',()=>{turnGroup(g.id,90);refreshUI();});
-  const bt2=document.createElement('div'); bt2.className='btns'; itemEd.appendChild(bt2);
-  addBtn(bt2,'Duplicate group','',()=>duplicateGroup(g.id));
-  addBtn(bt2,'Aim camera here','',()=>{const q=b();aimAtPoint(q.cx,1.5,q.cz);});
-  addBtn(bt2,'Show in view','',()=>{const q=b();ov.top.a=q.cx;ov.top.b=q.cz;orbit.target.set(q.cx,1,q.cz);});
-  addBtn(bt2,'Ungroup','',()=>{grpItems(g.id).forEach(it=>delete it.grp);pruneGroups();selectGroup(null);});
-  addBtn(bt2,'Delete group','warn',()=>deleteGroup(g.id));
-  B.forEach(f=>f());
-  return true;
-}
-
-function renderItemList(){
-  itemList.innerHTML=''; pruneGroups();
-  const bar=$('#grpBar');
-  if(!world.items.length){itemList.style.display='none';if(bar)bar.style.display='none';return;}
-  itemList.style.display='block'; if(bar) bar.style.display='';
-  const row=(it,i,inner)=>{
-    const b=document.createElement('button'); b.className=((i===selItem&&focus==='item')?'on':'')+(inner?' inner':'');
-    if(pickMode){const c=document.createElement('i');c.className='tick'+(pickSet.has(it.id)?' on':'');b.appendChild(c);}
-    b.appendChild(document.createTextNode(itemName(it,i)));
-    b.addEventListener('click',()=>{if(pickMode){pickSet.has(it.id)?pickSet.delete(it.id):pickSet.add(it.id);renderItemList();}else selectItem(i);});
-    itemList.appendChild(b);
-  };
-  world.groups.forEach(g=>{
-    const mem=world.items.map((it,i)=>[it,i]).filter(([it])=>it.grp===g.id);
-    const h=document.createElement('div'); h.className='grphd'+(focus==='group'&&selGroup===g.id?' on':'');
-    const tg=document.createElement('button'); tg.className='caret'+(g.open?' open':''); tg.setAttribute('aria-label',(g.open?'Close ':'Open ')+g.name);
-    tg.addEventListener('click',()=>{g.open=!g.open;renderItemList();});
-    const nm=document.createElement('button'); nm.className='gname';
-    nm.innerHTML='<span class="fic" aria-hidden="true"></span>'; nm.appendChild(document.createTextNode(g.name));
-    const ct=document.createElement('span'); ct.className='cnt'; ct.textContent=mem.length; nm.appendChild(ct);
-    nm.addEventListener('click',()=>{if(pickMode){const all=mem.every(([it])=>pickSet.has(it.id));mem.forEach(([it])=>all?pickSet.delete(it.id):pickSet.add(it.id));renderItemList();}else selectGroup(g.id);});
-    h.append(tg,nm); itemList.appendChild(h);
-    if(g.open) mem.forEach(([it,i])=>row(it,i,true));
-  });
-  world.items.forEach((it,i)=>{if(!it.grp)row(it,i,false);});
-  const hh=$('#objHead'); if(hh) hh.textContent='Objects ('+world.items.length+')'+(world.groups.length?' in '+world.groups.length+' group'+(world.groups.length>1?'s':''):'');
-  if(bar){
-    const [sel,grp,cancel]=bar.children;
-    sel.style.display=pickMode?'none':''; grp.style.display=cancel.style.display=pickMode?'':'none';
-    grp.textContent=pickSet.size?'Group '+pickSet.size+' selected':'Tick objects to group'; grp.disabled=pickSet.size<1;
-  }
-}
+function renderItemList(){} function renderItemEditor(){}
+function selectItem(i){selItem=-1;selGroup=null;focus='char';refreshUI();}
+function pruneGroups(){world.groups=(world.groups||[]).filter(g=>world.items.some(it=>it.grp===g.id));}
 function aimAtPoint(x,y,z){
   const dx=x-cam.x, dz=z-cam.z;
   cam.yaw=Math.atan2(-dx,-dz)*R2D;
   cam.pitch=clamp(Math.atan2(y-cam.y,Math.max(.01,Math.hypot(dx,dz)))*R2D,-89,89);
   cam.roll=0; updateCamPose(); refreshUI();
 }
-function renderItemEditor(){
-  itemEd.innerHTML=''; dynSyncs.length=0;
-  if(focus==='group'&&renderGroupEditor()) return;
-  const it=world.items[selItem];
-  if(!it||focus!=='item'){
-    const p=document.createElement('p'); p.className='note';
-    p.textContent='Nothing selected. Tap an object in Top or Director view, or pick one from the list below.';
-    itemEd.appendChild(p); return;
-  }
-  const t=CATALOG[it.type], B=dynSyncs, mv=()=>updateItemTransform(it);
-  const hd=document.createElement('div'); hd.className='itemhd'; hd.textContent=itemName(it,selItem); itemEd.appendChild(hd);
-  { const gr=document.createElement('label'); gr.className='toggle'; gr.innerHTML='<span>Group</span>';
-    const sl=document.createElement('select'); sl.className='field'; sl.style.cssText='width:auto;max-width:60%;padding:7px 10px';
-    sl.innerHTML='<option value="">None</option>'+world.groups.map(g=>'<option value="'+g.id+'">'+g.name.replace(/</g,'&lt;')+'</option>').join('')+'<option value="new">New group…</option>';
-    sl.value=it.grp?String(it.grp):'';
-    sl.addEventListener('change',()=>{if(sl.value==='new'){makeGroup([it]);}else if(sl.value){it.grp=+sl.value;}else delete it.grp;pruneGroups();renderItemEditor();renderItemList();});
-    gr.appendChild(sl); itemEd.appendChild(gr);
-    if(it.grp&&grpOf(it.grp)){const gbt=document.createElement('div');gbt.className='btns';itemEd.appendChild(gbt);addBtn(gbt,'Select whole group','',()=>selectGroup(it.grp));}
-  }
-  if(t.line){
-    const ro=document.createElement('div'); ro.className='readout'; itemEd.appendChild(ro);
-    B.push(()=>{ro.textContent='Length '+Math.hypot(it.x2-it.x,it.z2-it.z).toFixed(1)+' m';});
-    addNote(itemEd,'Drag the two end dots in Top view to reshape it, or drag the line itself to move it.');
-  }else{
-    addSlider(itemEd,{label:'Left / right',min:-WORLD_HALF,max:WORLD_HALF,step:.5,get:()=>it.x,set:v=>{it.x=v;mv();},fmt:m1},B);
-    addSlider(itemEd,{label:'Back / front',min:-WORLD_HALF,max:WORLD_HALF,step:.5,get:()=>it.z,set:v=>{it.z=v;mv();},fmt:m1},B);
-    addSlider(itemEd,{label:'Rotation',min:-180,max:180,step:1,get:()=>it.rot,set:v=>{it.rot=v;mv();},fmt:dg},B);
-  }
-  const gv=k=>k.split('.').reduce((o,p)=>o==null?o:o[p],it);
-  const sv=(k,v)=>{const ps=k.split('.');let o=it;for(let i=0;i<ps.length-1;i++){o=o[ps[i]]=o[ps[i]]||{};}o[ps[ps.length-1]]=v;};
-  t.ui.forEach(u=>{
-    if(u.head){h3(itemEd,u.head);return;}
-    const apply=v=>{sv(u.k,v);if(u.k==='doorOpen')setDoorTarget(it);else rebuildItem(it);};
-    if(u.toggle) addToggle(itemEd,u.toggle,()=>gv(u.k),apply,B);
-    else if(u.seg) addSeg(itemEd,u.seg,()=>gv(u.k),apply,B);
-    else if(u.set) addSwatches(itemEd,SETS[u.set],()=>gv(u.k),apply,B);
-    else addSlider(itemEd,{label:u.label,min:u.min,max:u.max,step:u.step,get:()=>gv(u.k),set:apply,fmt:u.fmt||(u.k==='s'?(v=>v.toFixed(2)+'×'):m1)},B);
-  });
-  if(t.base){
-    customSize(it);
-    addSlider(itemEd,{label:'Overall size',min:.1,max:10,step:.01,get:()=>+(it.w/t.base[0]).toFixed(2),set:v=>{const k=v/(it.w/t.base[0]);it.w=+(it.w*k).toFixed(3);it.d=+(it.d*k).toFixed(3);it.h=+(it.h*k).toFixed(3);rebuildItem(it);},fmt:v=>Math.round(v*100)+'%'},B);
-    addNote(itemEd,'Stretch it with the arrows on its sides in Top view and the arrow on top in Front view, or use Width, Depth and Height below.');
-  }
-  const bt=document.createElement('div'); bt.className='btns'; itemEd.appendChild(bt);
-  if(t.base) addBtn(bt,'Original size','',()=>{it.w=+t.base[0].toFixed(2);it.d=+t.base[1].toFixed(2);it.h=+t.base[2].toFixed(2);rebuildItem(it);refreshUI();});
-  addBtn(bt,'Duplicate','',()=>{
-    const c=JSON.parse(JSON.stringify(it)); c.id=itemSeq++;
-    if(t.line){c.x+=3;c.z+=3;c.x2+=3;c.z2+=3;}else{c.x+=3;c.z+=3;}
-    world.items.push(c); mountItem(c); selectItem(world.items.length-1);
-  });
-  if(it.doorOpen!==undefined) addBtn(bt,'Open / close door','',()=>{toggleDoor(it);B.forEach(f=>f());});
-  addBtn(bt,'Aim camera here','',()=>{const f=fpOf(it);aimAtPoint(f.cx,1.5,f.cz);});
-  addBtn(bt,'Show in view','',()=>{
-    const f=fpOf(it); ov.top.a=f.cx; ov.top.b=f.cz; orbit.target.set(f.cx,1,f.cz);
-    if(view==='front'){ov.front.a=f.cx;}else if(view==='side'){ov.side.a=f.cz;}
-  });
-  addBtn(bt,'Delete','warn',()=>{
-    unmountItem(it); world.items.splice(selItem,1); selectItem(-1);
-  });
-  B.forEach(f=>f());
-}
 (function(){
   const s=sec('world');
-  const wf=folder(s,'Worlds',false,false);
-  const wb=document.createElement('div'); wb.id='worldsBox'; wf.appendChild(wb);
-  const sv=document.createElement('div'); sv.style.cssText='display:flex;gap:8px;margin-top:8px'; wf.appendChild(sv);
-  const wn=document.createElement('input'); wn.className='field'; wn.placeholder='Name this world'; wn.maxLength=30; wn.setAttribute('aria-label','World name'); sv.appendChild(wn);
-  addBtn(sv,'Save','primary',()=>{const name=(wn.value||'').trim()||('World '+(myWorlds.length+1));const st=snapshot();delete st.light;myWorlds.unshift({name,state:st});saveMyWorlds();wn.value='';renderWorlds();toast('"'+name+'" saved to your worlds');});
-  const bs=folder(s,'Build a scene from a picture',false,false);
-  addNote(bs,'Choose a photo or film still. Claude lays out buildings, roads, trees, cars and people to match, and sets the camera like the picture. Everything it builds goes in one group.');
-  if(HAS_AI){
-    let fresh=true;
-    addToggle(bs,'Start from an empty world',()=>fresh,v=>{fresh=v;});
-    const bin=document.createElement('input'); bin.type='file'; bin.accept='image/*'; bin.hidden=true; bs.appendChild(bin);
-    const bb=document.createElement('div'); bb.className='btns'; bs.appendChild(bb);
-    const bst=addNote(bs,''); bst.classList.add('keep'); bst.setAttribute('aria-live','polite');
-    const go=addBtn(bb,'Choose a picture and build','primary',()=>bin.click());
-    bin.addEventListener('change',async()=>{const f=bin.files[0];bin.value='';if(!f)return;go.disabled=true;await buildSceneFromPicture(f,fresh,t=>{bst.textContent=t;});go.disabled=false;});
-  }else claudeOnly(bs,'Building a scene from a picture');
-  addNote(s,'Tap a category along the top of the picture, such as Streets or Buildings, to open its list. Pick an item, then tap the map. Roads, walls and fences are drawn by dragging. Tap an object to select it. In Top view drag the arrows on its sides to change width and depth, and in Front view drag the arrow on top for height.');
-
-  h3(s,'Selected');
-  s.appendChild(itemEd);
-
-  const hh=h3(s,'Objects (0)'); hh.id='objHead';
-  s.appendChild(itemList);
-  const gb=document.createElement('div'); gb.className='btns'; gb.id='grpBar'; s.appendChild(gb);
-  addBtn(gb,'Select several to group','',()=>{pickMode=true;pickSet.clear();if(focus==='item'&&world.items[selItem])pickSet.add(world.items[selItem].id);renderItemList();});
-  addBtn(gb,'Group','primary',()=>{
-    const its=world.items.filter(it=>pickSet.has(it.id)); if(!its.length) return;
-    const g=makeGroup(its); pickMode=false; pickSet.clear(); selectGroup(g.id); toast(g.name+' made. Rename it above');
-  });
-  addBtn(gb,'Cancel','',()=>{pickMode=false;pickSet.clear();renderItemList();});
-  const cb=document.createElement('div'); cb.className='btns'; s.appendChild(cb);
-  let armed=null;
-  const clr=addBtn(cb,'Clear all objects','warn',()=>{
-    if(!armed){clr.textContent='Tap again to clear everything';armed=setTimeout(()=>{armed=null;clr.textContent='Clear all objects';},3000);return;}
-    clearTimeout(armed); armed=null; clr.textContent='Clear all objects';
-    rebuildWorld([]); renderItemEditor(); renderItemList(); refreshUI();
-  });
-
-  const wd=document.createElement('details'); wd.className='more';
-  const wsum=document.createElement('summary'); wsum.textContent='Ground, snapping and layout'; wd.appendChild(wsum);
-  h3(wd,'Ground');
-  const gc=document.createElement('div'); gc.className='chips'; wd.appendChild(gc);
-  GROUNDS.forEach(([k,l,hex])=>{
-    const b=document.createElement('button'); b.className='chip'; b.dataset.k=k;
-    b.innerHTML='<i style="background:'+hex+'"></i>'; b.appendChild(document.createTextNode(l));
-    b.addEventListener('click',()=>{world.ground=k;refreshUI();});
-    gc.appendChild(b);
-  });
-  syncs.push(()=>[...gc.children].forEach(b=>b.classList.toggle('on',b.dataset.k===world.ground)));
-  addNote(wd,'Auto uses a neutral ground.');
-
-  h3(wd,'Options');
-  addToggle(wd,'Snap to a 1 m grid',()=>world.snap,v=>{world.snap=v;});
-  addToggle(wd,'Magnetic snap',()=>world.magnet,v=>{world.magnet=v;});
-  addSlider(wd,{label:'Magnet reach',min:.3,max:4,step:.1,get:()=>world.magnetR,set:v=>{world.magnetR=v;},fmt:v=>v.toFixed(1)+' m'});
-  addNote(wd,'Magnetic snap pulls roads, walls and fences to other ends and road edges, and pulls buildings and props flush against corners and edges. It also locks lines and rotation parallel or square to nearby objects. A white ring shows where it is sticking, and it beats the grid when both are on.');
-  addToggle(wd,'Landscape layout on portrait screens',()=>forceLandscape,v=>{forceLandscape=v;applyLayout();});
-  s.appendChild(wd);
+  h3(s,'Worlds');
+  const wb=document.createElement('div'); wb.id='worldsBox'; s.appendChild(wb);
+  h3(s,'Save this world');
+  const sv=document.createElement('div'); sv.style.cssText='display:flex;gap:8px'; s.appendChild(sv);
+  const wn=document.createElement('input'); wn.className='field'; wn.placeholder='Name'; wn.maxLength=30; wn.setAttribute('aria-label','World name'); sv.appendChild(wn);
+  addBtn(sv,'Save','primary',()=>{const name=(wn.value||'').trim()||('World '+(myWorlds.length+1));const st=snapshot();delete st.light;myWorlds.unshift({name,state:st});saveMyWorlds();wn.value='';renderWorlds();toast('"'+name+'" saved');});
+  h3(s,'Screen');
+  addToggle(s,'Turn the app sideways on an upright phone',()=>forceLandscape,v=>{forceLandscape=v;applyLayout();});
 })();
-renderPalette(); renderItemEditor(); renderItemList();
 
 /* =====================================================================
-   Modeling: custom houses and custom items
+   The studio: an empty lit stage where a character is posed
    ===================================================================== */
-const SHAPES=[['box','Box'],['cylinder','Cylinder'],['sphere','Sphere'],['cone','Cone'],['pyramid','Pyramid'],['wedge','Wedge']];
-const SHAPE_KEYS=SHAPES.map(s=>s[0]);
-const MCOLORS=['#f1f2ee','#e9e6df','#d8c3a5','#c97b5a','#a0523d','#b5c4a8','#4f8a3a','#8fa3b5','#2e6fb7','#9aa0a6','#5e5b57','#2d2f33','#8a6a4a','#c0392b','#e0b43a','#2d3b4a'];
-const HOUSE_DEF={w:9,d:10,floors:2,floorH:2.9,roof:'gable',pitch:.45,wall:'#d8c3a5',roofColor:'#5e5b57',trim:'#f1f2ee',win:3,door:true,porch:false,chimney:true,garage:false};
-let models=[], modelSeq=1, curModel=null, selPart=-1;
-const MODEL_KEY='storyboard-stage-models';
-
-function shapeGeo(k){
-  if(k==='cylinder') return new THREE.CylinderGeometry(.5,.5,1,20);
-  if(k==='sphere') return new THREE.SphereGeometry(.5,20,14);
-  if(k==='cone') return new THREE.ConeGeometry(.5,1,20);
-  if(k==='pyramid'){const g=new THREE.ConeGeometry(Math.SQRT1_2,1,4);g.rotateY(Math.PI/4);return g;}
-  if(k==='wedge'){
-    const sh=new THREE.Shape(); sh.moveTo(-.5,-.5); sh.lineTo(.5,-.5); sh.lineTo(0,.5); sh.lineTo(-.5,-.5);
-    const g=new THREE.ExtrudeGeometry(sh,{depth:1,bevelEnabled:false}); g.translate(0,0,-.5); g.computeVertexNormals(); return g;
-  }
-  return new THREE.BoxGeometry(1,1,1);
-}
-function partMesh(p){
-  const m=new THREE.Mesh(shapeGeo(p.shape),bm(p.color||'#cccccc',.8));
-  m.scale.set(Math.max(.01,p.w),Math.max(.01,p.h),Math.max(.01,p.d));
-  m.rotation.set((p.rx||0)*D2R,(p.ry||0)*D2R,(p.rz||0)*D2R,'YXZ');
-  m.position.set(p.x||0,(p.y||0)+p.h/2,p.z||0);
-  m.castShadow=true; m.receiveShadow=true;
-  return m;
-}
-/* the house generator: walls, floors, windows, door, roof and extras from a few settings */
-function houseParts(H){
-  const P=[], add=(shape,x,y,z,w,h,d,color)=>P.push({shape,x,y,z,w,h,d,ry:0,color,gen:true});
-  const wallH=H.floors*H.floorH, ov=.4, glass='#2d3b4a';
-  add('box',0,0,0,H.w,wallH,H.d,H.wall);
-  for(let f=1;f<H.floors;f++) add('box',0,f*H.floorH-.08,0,H.w+.12,.16,H.d+.12,H.trim);
-  const rh=H.roof==='flat'?.3:(H.w/2+ov)*H.pitch;
-  if(H.roof==='gable') add('wedge',0,wallH,0,H.w+ov*2,rh,H.d+ov*2,H.roofColor);
-  else if(H.roof==='hip') add('pyramid',0,wallH,0,H.w+ov*2,rh,H.d+ov*2,H.roofColor);
-  else add('box',0,wallH,0,H.w+.3,rh,H.d+.3,H.roofColor);
-  const spread=(n,len,skip)=>{const out=[];for(let i=0;i<n;i++){const x=-len/2+len*(i+.5)/n;if(!skip||Math.abs(x)>1.1)out.push(x);}return out;};
-  const nSide=Math.max(1,Math.round(H.d/3.6));
-  for(let f=0;f<H.floors;f++){
-    const y=f*H.floorH+.9;
-    if(H.win>0){
-      [1,-1].forEach(sd=>spread(H.win,H.w,f===0&&sd===1&&H.door).forEach(x=>{
-        add('box',x,y-.08,sd*(H.d/2+.02),1.06,1.36,.06,H.trim); add('box',x,y,sd*(H.d/2+.05),.9,1.2,.06,glass);
-      }));
-      [1,-1].forEach(sd=>spread(nSide,H.d).forEach(z=>{
-        add('box',sd*(H.w/2+.02),y-.08,z,.06,1.36,1.06,H.trim); add('box',sd*(H.w/2+.05),y,z,.06,1.2,.9,glass);
-      }));
-    }
-  }
-  if(H.door){add('box',0,0,H.d/2+.02,1.25,2.3,.06,H.trim);add('box',0,0,H.d/2+.05,1.0,2.15,.06,'#6b4a33');}
-  if(H.porch){
-    const pw=Math.min(H.w-.4,Math.max(3,H.w*.55));
-    add('box',0,0,H.d/2+1,pw,.2,2,'#9aa0a6');
-    [-1,1].forEach(sd=>add('cylinder',sd*(pw/2-.2),.2,H.d/2+1.8,.18,H.floorH-.35,.18,H.trim));
-    add('box',0,H.floorH-.15,H.d/2+1,pw+.2,.15,2.2,H.roofColor);
-  }
-  if(H.chimney) add('box',H.w/4,wallH,-H.d/5,.8,rh+(H.roof==='flat'?1.2:.9),.8,'#a0523d');
-  if(H.garage){
-    const gx=H.w/2+2.2;
-    add('box',gx,0,H.d/2-3.2,4.4,3,6.4,H.wall); add('box',gx,3,H.d/2-3.2,4.7,.25,6.7,H.roofColor);
-    add('box',gx,0,H.d/2+.03,3.2,2.4,.06,H.trim);
-  }
-  return P;
-}
-const modelParts=m=>(m.house?houseParts(m.house):[]).concat(m.parts);
-function modelFootprint(m){
-  let mx=.5,mz=.5;
-  modelParts(m).forEach(p=>{
-    const r=(p.ry||0)*D2R, c=Math.abs(Math.cos(r)), s=Math.abs(Math.sin(r));
-    mx=Math.max(mx,Math.abs(p.x||0)+c*p.w/2+s*p.d/2); mz=Math.max(mz,Math.abs(p.z||0)+s*p.w/2+c*p.d/2);
-  });
-  return [mx*2,mz*2];
-}
-function modelHeight(m){let h=.1;modelParts(m).forEach(p=>{h=Math.max(h,(p.y||0)+p.h);});return h;}
-/* placed copies have their own width, depth and height, so they stretch like buildings */
-function registerModel(m){
-  const fp=modelFootprint(m), H=modelHeight(m), r2=v=>+v.toFixed(2);
-  CATALOG['cm_'+m.id]={cat:'Custom',label:m.name||'Custom item',build:'custom',rect:true,base:[fp[0],fp[1],H],
-    def:{model:m.id,w:r2(fp[0]),d:r2(fp[1]),h:r2(H)},
-    ui:[P('w','Width',.1,200,.05),P('d','Depth',.1,200,.05),P('h','Height',.1,200,.05)]};
-}
-function customSize(it){                                   /* older copies only had one overall size */
-  const t=CATALOG[it.type]; if(!t||!t.base||it.w!==undefined) return;
-  const k=it.s||1; it.w=+(t.base[0]*k).toFixed(2); it.d=+(t.base[1]*k).toFixed(2); it.h=+(t.base[2]*k).toFixed(2); delete it.s;
-}
-BUILD.custom=function(it,g){
-  customSize(it);
-  const m=models.find(x=>x.id===it.model), t=CATALOG[it.type];
-  if(!m||!t||!t.base){bx(g,it.w||1,it.h||1,it.d||1,bm('#888888'),0,(it.h||1)/2,0);return;}
-  const inner=new THREE.Group(); modelParts(m).forEach(p=>inner.add(partMesh(p)));
-  inner.scale.set(it.w/t.base[0],it.h/t.base[2],it.d/t.base[1]); g.add(inner);
-};
-function refreshCats(){CATS=[...new Set(Object.values(CATALOG).filter(t=>!t.hidden).map(t=>t.cat))];}
-let instT=null, instDirty=new Set();
-function flushInstances(){
-  clearTimeout(instT);
-  instDirty.forEach(id=>{const m=models.find(x=>x.id===id); if(!m) return;
-    const old=CATALOG['cm_'+id]&&CATALOG['cm_'+id].base, its=world.items.filter(i=>i.type==='cm_'+id);
-    its.forEach(customSize); const ratios=old?its.map(i=>[i.w/old[0],i.d/old[1],i.h/old[2]]):null;
-    registerModel(m);
-    const nb=CATALOG['cm_'+id].base; if(ratios) its.forEach((i,k)=>{i.w=+(nb[0]*ratios[k][0]).toFixed(2);i.d=+(nb[1]*ratios[k][1]).toFixed(2);i.h=+(nb[2]*ratios[k][2]).toFixed(2);});
-    world.items.forEach(i=>{if(i.type==='cm_'+id&&itemObjs.has(i.id))rebuildItem(i);});});
-  instDirty.clear(); refreshCats(); renderPalette(); renderItemList();
-}
-function saveModels(){try{localStorage.setItem(MODEL_KEY,JSON.stringify(models));}catch(err){}autosave();}
-function setModels(list){
-  models=[]; (Array.isArray(list)?list:[]).forEach(m=>{if(m&&m.id){m.parts=sanitizeParts(m.parts);if(m.house)m.house=sanitizeHouse(m.house);models.push(m);}});
-  modelSeq=1+models.reduce((a,m)=>Math.max(a,m.id),0);
-  models.forEach(registerModel); refreshCats();
-}
-function modelChanged(){
-  if(!curModel) return;
-  rebuildModelView(); instDirty.add(curModel.id); clearTimeout(instT); instT=setTimeout(flushInstances,400); saveModels();
-}
-
-/* ---- validation for anything that comes from a file or from Claude ---- */
-const num=(v,a,b,d)=>{v=Number(v);return isFinite(v)?clamp(v,a,b):d;};
-const hexOk=c=>typeof c==='string'&&/^#[0-9a-f]{6}$/i.test(c);
-function sanitizeParts(arr){
-  return (Array.isArray(arr)?arr:[]).slice(0,150).filter(p=>p&&typeof p==='object').map(p=>({
-    shape:SHAPE_KEYS.includes(p.shape)?p.shape:'box',
-    x:num(p.x,-200,200,0),y:num(p.y,-50,200,0),z:num(p.z,-200,200,0),
-    w:num(p.w,.02,200,1),h:num(p.h,.02,200,1),d:num(p.d,.02,200,1),
-    rx:num(p.rx,-180,180,0),ry:num(p.ry,-180,180,0),rz:num(p.rz,-180,180,0),
-    color:hexOk(p.color)?p.color.toLowerCase():'#cccccc'
-  }));
-}
-function sanitizeHouse(h){
-  const H=Object.assign({},HOUSE_DEF);
-  if(!h||typeof h!=='object') return H;
-  H.w=num(h.w,3,40,H.w); H.d=num(h.d,3,40,H.d); H.floors=Math.round(num(h.floors,1,8,H.floors)); H.floorH=num(h.floorH,2.2,5,H.floorH);
-  H.roof=['gable','hip','flat'].includes(h.roof)?h.roof:H.roof; H.pitch=num(h.pitch,.1,1.2,H.pitch); H.win=Math.round(num(h.win,0,8,H.win));
-  ['wall','roofColor','trim'].forEach(k=>{if(hexOk(h[k]))H[k]=h[k].toLowerCase();});
-  ['door','porch','chimney','garage'].forEach(k=>{if(typeof h[k]==='boolean')H[k]=h[k];});
-  return H;
-}
-
-/* ---- the modeling workspace: its own little scene, viewed with the orbit camera ---- */
 const mScene=new THREE.Scene(); mScene.background=new THREE.Color(0x26292d);
 mScene.add(new THREE.HemisphereLight(0xffffff,0x5a5650,.85));
-const mSun=new THREE.DirectionalLight(0xffffff,1.35); mSun.position.set(9,16,12); mSun.castShadow=true;
-mSun.shadow.mapSize.set(2048,2048); mSun.shadow.bias=-.0004;
-Object.assign(mSun.shadow.camera,{left:-20,right:20,top:20,bottom:-20,near:1,far:60}); mSun.shadow.camera.updateProjectionMatrix();
+const mSun=new THREE.DirectionalLight(0xffffff,1.35); mSun.position.set(6,12,9); mSun.castShadow=true;
+mSun.shadow.mapSize.set(1024,1024); mSun.shadow.bias=-.0004;
+Object.assign(mSun.shadow.camera,{left:-4,right:4,top:4,bottom:-4,near:1,far:40}); mSun.shadow.camera.updateProjectionMatrix();
 mScene.add(mSun); mScene.add(mSun.target);
 const mGround=new THREE.Mesh(new THREE.CircleGeometry(30,48),new THREE.MeshStandardMaterial({color:C('#3a3e43'),roughness:1}));
 mGround.rotation.x=-Math.PI/2; mGround.receiveShadow=true; mScene.add(mGround);
 const mGrid=new THREE.GridHelper(40,40,0x7a7f86,0x4a4e54); mGrid.position.y=.003; mScene.add(mGrid);
 const mGroup=new THREE.Group(); mScene.add(mGroup);
-const mSel=new THREE.BoxHelper(new THREE.Object3D(),0xf5c400); mSel.material.depthTest=false; mSel.material.toneMapped=false; mSel.renderOrder=20; mSel.visible=false; mScene.add(mSel);
-let mMeshes=[];
-function rebuildModelView(){
-  mGroup.children.slice().forEach(o=>{mGroup.remove(o);disposeObj(o);}); mMeshes=[];
-  if(!curModel) return;
-  const gen=curModel.house?houseParts(curModel.house):[];
-  gen.forEach(p=>{const m=partMesh(p);m.userData.pi=-1;mGroup.add(m);});
-  curModel.parts.forEach((p,i)=>{const m=partMesh(p);m.userData.pi=i;mGroup.add(m);mMeshes[i]=m;});
-}
+const mSel={visible:false};
 const modelOrbit={az:35*D2R,pol:62*D2R,dist:16,target:new THREE.Vector3(0,1.5,0)}, worldOrbit={az:0,pol:1,dist:9,target:new THREE.Vector3()};
-function swapOrbit(toModel){
-  const save=toModel?worldOrbit:modelOrbit, load=toModel?modelOrbit:worldOrbit;
+function swapOrbit(toStudio){
+  const save=toStudio?worldOrbit:modelOrbit, load=toStudio?modelOrbit:worldOrbit;
   save.az=orbit.az; save.pol=orbit.pol; save.dist=orbit.dist; save.target.copy(orbit.target);
   orbit.az=load.az; orbit.pol=load.pol; orbit.dist=load.dist; orbit.target.copy(load.target);
-}
-function frameModel(){
-  const b=new THREE.Box3().setFromObject(mGroup);
-  if(b.isEmpty()){orbit.target.set(0,1,0);orbit.dist=10;return;}
-  const c=b.getCenter(new THREE.Vector3()), sz=b.getSize(new THREE.Vector3());
-  orbit.target.copy(c); orbit.dist=clamp(Math.max(sz.x,sz.y,sz.z)*1.9+2,3,110);
-}
-function renderModel(w,h){
-  const m=selPart>=0?mMeshes[selPart]:null;
-  if(m){mSel.setFromObject(m);mSel.visible=true;}else mSel.visible=false;
-  renderer.setScissorTest(false); renderer.setViewport(0,0,w,h);
-  const flat=mView!=='3d';
-  mGrid.visible=mView!=='front'&&mView!=='side'; mGridF.visible=mView==='front'; mGridS.visible=mView==='side';
-  const p=selP();
-  mHandles.forEach(h=>h.visible=false);
-  if(flat){
-    mOrthoSetup(w,h);
-    if(p){const sz=mOv[mView].span*.022;mHandleSpots(p).forEach((q,i)=>{const hd=mHandles[i];hd.position.copy(mPt(q[0],q[1]));hd.scale.set(sz,sz,1);hd.visible=true;});}
-    renderer.render(mScene,orthoCam);
-  }else{updateOrbit(); renderer.render(mScene,orbitCam);}
-}
-function modelPick(x,y){
-  setRay(x,y);
-  const hits=ray.intersectObjects(mGroup.children,false);
-  return hits.length?hits[0].object.userData.pi:-2;
-}
-function modelPlanePoint(x,y,h){setRay(x,y);const pl=new THREE.Plane(new THREE.Vector3(0,1,0),-h);return ray.ray.intersectPlane(pl,new THREE.Vector3());}
-function modelPointerDown(x,y,e){
-  const flat=mView!=='3d';
-  if(flat&&selP()){
-    const sp=selP(), w=stage.clientWidth, h=stage.clientHeight;
-    const hit=mHandleSpots(sp).find(q=>{const v=mPt(q[0],q[1]).project(orthoCam);return Math.hypot((v.x+1)/2*w-x,(1-v.y)/2*h-y)<26;});
-    if(hit){drag={type:'mres',k:hit[2]};mode='drag';return;}
-  }
-  const pi=modelPick(x,y), p=curModel&&curModel.parts[pi];
-  if(p){                                                        /* press any part: select it and drag it */
-    if(pi!==selPart) selectPart(pi);
-    if(flat){const [a,b]=mPlane(x,y);drag={type:'part',a0:a,b0:b,p0:{x:p.x,y:p.y,z:p.z}};mode='drag';return;}
-    const q=modelPlanePoint(x,y,p.y); if(q){drag={type:'part',dx:p.x-q.x,dz:p.z-q.z};mode='drag';return;}
-  }
-  tap={kind:'part',idx:pi,x,y,moved:false};
-  mode=flat?'mpan':(e.button===2||e.shiftKey)?'pan':'orbit';
-}
-function modelDragMove(x,y){
-  const p=selP(); if(!p) return;
-  if(mView!=='3d'){
-    const [a,b]=mPlane(x,y);
-    if(drag.type==='mres'){
-      const [A,B]=MAXES[mView], ax=drag.k[0]==='a'?A:B, v=mSnap(drag.k[0]==='a'?a:b), lo=mLo(p,ax), hi=lo+p[ax[1]];
-      let nlo=lo, nhi=hi; if(drag.k[1]==='0') nlo=Math.min(v,hi-.02); else nhi=Math.max(v,lo+.02);
-      p[ax[1]]=+(nhi-nlo).toFixed(3);
-      if(ax[2]) p.y=+nlo.toFixed(3); else p[ax[0]]=+((nlo+nhi)/2).toFixed(3);
-    }else{
-      const da=a-drag.a0, db=b-drag.b0, o=drag.p0;
-      if(mView==='top'){p.x=mSnap(o.x+da);p.z=mSnap(o.z+db);}
-      else if(mView==='front'){p.x=mSnap(o.x+da);p.y=Math.max(-50,mSnap(o.y+db));}
-      else{p.z=mSnap(o.z+da);p.y=Math.max(-50,mSnap(o.y+db));}
-    }
-    const m=mMeshes[selPart];
-    if(m){m.scale.set(Math.max(.01,p.w),Math.max(.01,p.h),Math.max(.01,p.d));m.position.set(p.x,p.y+p.h/2,p.z);}
-    mSyncs.forEach(f=>f()); return;
-  }
-  const q=modelPlanePoint(x,y,p.y); if(!q) return;
-  p.x=clamp(mSnap(q.x+drag.dx),-200,200); p.z=clamp(mSnap(q.z+drag.dz),-200,200);
-  const m=mMeshes[selPart]; if(m){m.position.x=p.x;m.position.z=p.z;}
-  mSyncs.forEach(f=>f());
-}
-/* ---- modeling: flat views (Top, Front, Side), handles, and quick tools ---- */
-var mView='3d';
-const mOv={top:{a:0,b:0,span:8},front:{a:0,b:1.5,span:6},side:{a:0,b:1.5,span:6}};
-const MAXES={top:[['x','w',false],['z','d',false]],front:[['x','w',false],['y','h',true]],side:[['z','d',false],['y','h',true]]};
-const mGridF=new THREE.GridHelper(60,120,0x7a7f86,0x3e4248); mGridF.rotation.x=Math.PI/2; mGridF.position.z=-40; mGridF.visible=false; mScene.add(mGridF);
-const mGridS=new THREE.GridHelper(60,120,0x7a7f86,0x3e4248); mGridS.rotation.z=Math.PI/2; mGridS.position.x=40; mGridS.visible=false; mScene.add(mGridS);
-const mHandles=[0,1,2,3].map(()=>{const sp=new THREE.Sprite(new THREE.SpriteMaterial({color:C(0xf5c400),depthTest:false,toneMapped:false}));sp.renderOrder=50;sp.visible=false;mScene.add(sp);return sp;});
-const mPt=(a,b)=>mView==='top'?new THREE.Vector3(a,30,b):mView==='front'?new THREE.Vector3(a,b,30):new THREE.Vector3(-30,b,a);
-function mOrthoSetup(w,h){
-  const s=mOv[mView], hh=s.span/2, hw=hh*(w/h);
-  orthoCam.left=-hw; orthoCam.right=hw; orthoCam.top=hh; orthoCam.bottom=-hh; orthoCam.updateProjectionMatrix();
-  if(mView==='top'){orthoCam.up.set(0,0,-1);orthoCam.position.set(s.a,100,s.b);orthoCam.lookAt(s.a,0,s.b);}
-  else if(mView==='front'){orthoCam.up.set(0,1,0);orthoCam.position.set(s.a,s.b,100);orthoCam.lookAt(s.a,s.b,0);}
-  else{orthoCam.up.set(0,1,0);orthoCam.position.set(-100,s.b,s.a);orthoCam.lookAt(0,s.b,s.a);}
-  orthoCam.updateMatrixWorld();
-}
-function mPlane(x,y){
-  const q=new THREE.Vector3(x/stage.clientWidth*2-1,-(y/stage.clientHeight)*2+1,0).unproject(orthoCam);
-  return mView==='top'?[q.x,q.z]:mView==='front'?[q.x,q.y]:[q.z,q.y];
-}
-const mLo=(p,ax)=>ax[2]?p.y:p[ax[0]]-p[ax[1]]/2;
-function mHandleSpots(p){
-  const [A,B]=MAXES[mView], a0=mLo(p,A), a1=a0+p[A[1]], b0=mLo(p,B), b1=b0+p[B[1]], am=(a0+a1)/2, bm=(b0+b1)/2;
-  return [[a0,bm,'a0'],[a1,bm,'a1'],[am,b0,'b0'],[am,b1,'b1']];
-}
-function setModelView(v){
-  mView=v;
-  [...$('#mViewSeg').children].forEach(b=>b.classList.toggle('on',b.dataset.mv===v));
-  if(v!=='3d') fitModelOrtho();
-}
-function fitModelOrtho(){
-  const b=new THREE.Box3().setFromObject(mGroup), s=mOv[mView]; if(!s) return;
-  const asp=Math.max(.5,stage.clientWidth/Math.max(1,stage.clientHeight));
-  if(b.isEmpty()){s.a=0;s.b=mView==='top'?0:1;s.span=6;return;}
-  const c=b.getCenter(new THREE.Vector3()), z=b.getSize(new THREE.Vector3());
-  const [aw,bh]=mView==='top'?[z.x,z.z]:mView==='front'?[z.x,z.y]:[z.z,z.y];
-  s.a=mView==='side'?c.z:c.x; s.b=mView==='top'?c.z:c.y; s.span=Math.max(1.5,Math.max(bh,aw/asp)*1.5+.6);
-}
-function fitModelView(){if(mView==='3d')frameModel();else fitModelOrtho();}
-const mSnap=v=>world.snap?Math.round(v*20)/20:v;          /* 5 cm steps */
-
-/* ---- undo for models ---- */
-const mHist={undo:[],redo:[],cur:null,t:null,id:null};
-const mJSON=()=>curModel?JSON.stringify({house:curModel.house,parts:curModel.parts,name:curModel.name}):null;
-function mHistReset(){mHist.undo.length=0;mHist.redo.length=0;mHist.cur=mJSON();mHist.id=curModel&&curModel.id;}
-function mCheckpoint(){
-  if(!curModel) return; if(mHist.id!==curModel.id){mHistReset();return;}
-  const j=mJSON(); if(j===mHist.cur) return;
-  mHist.undo.push(mHist.cur); if(mHist.undo.length>120) mHist.undo.shift(); mHist.cur=j; mHist.redo.length=0;
-}
-function mRestore(j){const d=JSON.parse(j);curModel.house=d.house;curModel.parts=d.parts;curModel.name=d.name;mHist.cur=j;selPart=Math.min(selPart,curModel.parts.length-1);registerModel(curModel);modelChanged();renderModelPanel();renderLibrary();}
-function mUndo(){clearTimeout(mHist.t);mCheckpoint();if(!mHist.undo.length){toast('Nothing to undo');return;}mHist.redo.push(mHist.cur);mRestore(mHist.undo.pop());toast('Undone');}
-function mRedo(){clearTimeout(mHist.t);if(!mHist.redo.length){toast('Nothing to redo');return;}mHist.undo.push(mHist.cur);mRestore(mHist.redo.pop());toast('Redone');}
-['pointerup','change','click','keyup'].forEach(ev=>document.addEventListener(ev,()=>{if(appMode==='model'){clearTimeout(mHist.t);mHist.t=setTimeout(mCheckpoint,60);}}));
-
-/* ---- quick tools ---- */
-function selP(){return curModel&&curModel.parts[selPart];}
-function addPart(shape){
-  if(!curModel){newModel('item');curModel.parts.length=0;}
-  const s=selP(), m=curModel;
-  let x,z,y=0;
-  if(s){x=s.x;z=s.z;y=s.y+s.h;}                                   /* stack on the selected part */
-  else if(mView==='3d'){x=orbit.target.x;z=orbit.target.z;}
-  else{const o=mOv[mView];x=mView==='side'?0:o.a;z=mView==='top'?o.b:mView==='side'?o.a:0;}
-  if(m.house&&!s){y=0;z=m.house.d/2+1;}
-  m.parts.push({shape,x:mSnap(x),y:mSnap(y),z:mSnap(z),w:1,h:shape==='sphere'?1:shape==='wedge'||shape==='pyramid'?.6:1,d:1,rx:0,ry:0,rz:0,color:s?s.color:'#c97b5a'});
-  selPart=m.parts.length-1; mOpen['Selected part']=true; modelChanged(); renderModelPanel();
-}
-function dupPart(){const p=selP();if(!p){toast('Select a part first');return;}const c=Object.assign({},p);c.x=mSnap(c.x+.3);c.z=mSnap(c.z+.3);curModel.parts.push(c);selPart=curModel.parts.length-1;modelChanged();renderModelPanel();}
-function mirrorPart(){
-  const p=selP(); if(!p){toast('Select a part first');return;}
-  if(Math.abs(p.x)<.01){toast('This part is on the centre line, so its mirror is itself');return;}
-  const c=Object.assign({},p); c.x=-p.x; c.ry=-(p.ry||0); c.rz=-(p.rz||0);
-  curModel.parts.push(c); selPart=curModel.parts.length-1; modelChanged(); renderModelPanel(); toast('Mirrored to the other side');
-}
-function dropPart(){
-  const p=selP(); if(!p){toast('Select a part first');return;}
-  const ext=q=>{const r=(q.ry||0)*D2R,c=Math.abs(Math.cos(r)),s=Math.abs(Math.sin(r));return [c*q.w/2+s*q.d/2,s*q.w/2+c*q.d/2];};
-  const [ex,ez]=ext(p); let floor=0;
-  modelParts(curModel).forEach(q=>{
-    if(q===p) return; const [qx,qz]=ext(q), top=q.y+q.h;
-    if(Math.abs(q.x-p.x)<ex+qx-.001&&Math.abs(q.z-p.z)<ez+qz-.001&&top<=p.y+.011) floor=Math.max(floor,top);
-  });
-  p.y=floor; modelChanged(); renderModelPanel();
-}
-function turnPart(){const p=selP();if(!p){toast('Select a part first');return;}p.ry=wrap180((p.ry||0)+90);modelChanged();renderModelPanel();}
-function nudgePart(dx,dy){
-  const p=selP(); if(!p) return false;
-  if(mView==='front'){p.x+=dx;p.y=Math.max(-50,p.y+dy);}
-  else if(mView==='side'){p.z+=dx;p.y=Math.max(-50,p.y+dy);}
-  else{p.x+=dx;p.z-=dy;}
-  p.x=+p.x.toFixed(3);p.y=+p.y.toFixed(3);p.z=+p.z.toFixed(3);
-  modelChanged(); refreshUI(); return true;
-}
-
-function selectPart(i){selPart=curModel&&curModel.parts[i]?i:-1; if(selPart>=0)mOpen['Selected part']=true; renderModelPanel();}
-function newModel(kind,name){
-  const m={id:modelSeq++,name:name||(kind==='house'?'My house':'My item'),house:kind==='house'?Object.assign({},HOUSE_DEF):null,parts:[]};
-  if(kind!=='house') m.parts.push({shape:'box',x:0,y:0,z:0,w:1,h:1,d:1,rx:0,ry:0,rz:0,color:'#d8c3a5'});
-  models.push(m); registerModel(m); refreshCats(); saveModels(); editModel(m); renderLibrary(); renderPalette();
-  return m;
-}
-function editModel(m){
-  curModel=m; selPart=-1; rebuildModelView(); mHistReset(); if(appMode==='model') fitModelView();
-  renderModelPanel(); renderLibrary();
-  if(appMode!=='model'){setAppMode('model');}
-  gotoTab('model');
-}
-function deleteModel(m){
-  world.items.filter(i=>i.type==='cm_'+m.id).forEach(i=>{unmountItem(i);world.items.splice(world.items.indexOf(i),1);});
-  selectItem(-1);
-  const t=CATALOG['cm_'+m.id]; if(t) t.hidden=true;   /* kept so undo can still draw old copies */
-  models.splice(models.indexOf(m),1); if(curModel===m){curModel=null;selPart=-1;rebuildModelView();}
-  saveModels(); refreshCats(); renderPalette(); renderItemList(); renderLibrary(); renderModelPanel();
-}
-function placeModel(m){
-  flushInstances(); registerModel(m); refreshCats();
-  setAppMode('build'); gotoTab('world'); setPlacing('cm_'+m.id);
-}
-
-/* ---- AI: ask Claude to design or change a model ---- */
-let samplerP=null, aiCtl=null, aiMsg='', aiPhoto=null, aiLoading=false;
-function aiSay(t){aiMsg=t;const e=$('#aiStatus');if(e)e.textContent=t;}
-function aiBusy(){const on=!!aiCtl||aiLoading;['#aiNew','#aiChg'].forEach(q=>{const b=$(q);if(b)b.disabled=on;});const st=$('#aiStop');if(st)st.style.display=on?'':'none';}
-function getSampler(){
-  if(!samplerP) samplerP=(window.claude&&typeof window.claude.use==='function')?Promise.resolve(window.claude.use('sample')).catch(()=>null):Promise.resolve(null);
-  return samplerP;
-}
-const AI_FORMAT='Reply with only one JSON object of this shape:\n'+
-'{"name": "2 to 4 words", "house": null, "parts": [{"shape": "box", "x": 0, "y": 0, "z": 0, "w": 1, "h": 1, "d": 1, "rx": 0, "ry": 0, "rz": 0, "color": "#aabbcc"}]}\n'+
-'Rules:\n- Units are metres. The object stands on the ground at the origin and its front faces +z.\n'+
-'- x and z are the centre of a part; y is the height of the BOTTOM of the part; w, h and d are its full size along x, y and z before rotation.\n'+
-'- Rotations rx, ry, rz are degrees; ry turns around the vertical axis.\n'+
-'- shape is one of: box, cylinder, sphere, cone, pyramid, wedge. Cylinder, sphere and cone fill their w by h by d box. pyramid has a square base (hip roofs, spires). wedge is a triangular prism, triangle in the x/y plane pointing up, running along z (gable roofs, ramps).\n'+
-'- Build it like a simple low-poly toy model: real-world size, 6 to 60 parts, believable colours, parts touching so nothing floats.\n'+
-'- For a house or other simple building you may instead set "house" to {"w": 9, "d": 10, "floors": 2, "floorH": 2.9, "roof": "gable" or "hip" or "flat", "pitch": 0.45, "wall": "#d8c3a5", "roofColor": "#5e5b57", "trim": "#f1f2ee", "win": 3, "door": true, "porch": false, "chimney": true, "garage": false}. The app then builds the walls, windows, door and roof itself, and "parts" only holds extra details such as a fence, mailbox, balcony or sign.';
-async function aiRun(desc,changeCurrent){
-  const ui={status:aiSay,busy:aiBusy};
-  if(aiLoading){ui.status('The photo is still being prepared. Try again in a moment.');return;}
-  desc=desc.trim(); if(!desc&&!aiPhoto){ui.status('Describe what you want, or attach a photo.');return;}
-  const sample=await getSampler();
-  if(!sample){ui.status('AI help works when this page is open as a published Claude artifact. You can still build by hand.');return;}
-  let prompt;
-  const photoLine=aiPhoto?'A reference photo is attached. Match its shape, proportions, details and colours as closely as simple shapes allow.\n':'';
-  if(!desc&&aiPhoto) desc='the building or object in the photo';
-  if(changeCurrent&&curModel){
-    prompt='You design simple 3D models for a film previsualisation app.\n'+photoLine+'Here is the current model as JSON:\n'+
-      JSON.stringify({name:curModel.name,house:curModel.house,parts:curModel.parts})+
-      '\n\nChange it like this: '+desc+'\nReturn the WHOLE updated model, not only the changes.\n\n'+AI_FORMAT;
-  }else prompt='You design simple 3D models for a film previsualisation app.\n'+photoLine+'Make this: '+desc+'\n\n'+AI_FORMAT;
-  aiCtl=new AbortController(); ui.busy(); ui.status('Thinking…');
-  try{
-    const opts={signal:aiCtl.signal,onText:({text})=>ui.status('Designing… '+text.length+' characters so far')};
-    if(aiPhoto){const lim=await sample.limits().catch(()=>null);if(!lim||!lim.images)throw {code:'images_unavailable'};opts.images=[dataURLBlob(aiPhoto)];}
-    const r=await sample.json(prompt,opts);
-    if(!r||typeof r!=='object') throw {code:'invalid_json'};
-    const parts=sanitizeParts(r.parts), house=r.house&&typeof r.house==='object'?sanitizeHouse(r.house):null;
-    if(!parts.length&&!house) throw {code:'invalid_json'};
-    const name=typeof r.name==='string'&&r.name.trim()?r.name.trim().slice(0,32):null;
-    if(changeCurrent&&curModel){curModel.parts=parts;curModel.house=house;if(name)curModel.name=name;selPart=-1;}
-    else{const m=newModel('item',name||desc.slice(0,24));m.parts=parts;m.house=house;}
-    aiCtl=null; registerModel(curModel); modelChanged(); frameModel(); renderModelPanel(); renderLibrary();
-    ui.status('Done. Tap a part to adjust it, or describe another change.');
-  }catch(e){
-    const c=e&&e.code;
-    ui.status(c==='cancelled'?'Stopped.':c==='rate_limited'?'Too many requests right now. Try again in a minute.':
-      c==='invalid_json'?'The answer could not be read. Try again, or describe it more simply.':
-      c==='refused'?'Claude declined that. Try describing it differently.':c==='images_unavailable'?'Photos cannot be sent from here. Describe it in words instead.':c==='image_rejected'?'That photo could not be used. Try a JPEG or PNG.':
-      (c==='not_granted'||c==='sampling_disabled'||c==='not_declared'||c==='capability_disabled')?'AI help is not available for this page.':
-      'Something went wrong. Try again.');
-  }finally{aiCtl=null;ui.busy();}
-}
-
-/* ---- Model and Library tabs ---- */
-const mSyncs=[], mOpen={'Make it with AI':true,'House':true,'Parts':true,'Selected part':true};
-syncs.push(()=>mSyncs.forEach(f=>f()));
-function mFolder(parent,title,extra){
-  const body=folder(parent,title+(extra||''),!!mOpen[title],false);
-  body.parentNode.addEventListener('toggle',e=>{mOpen[title]=e.target.open;});
-  return body;
-}
-function renderModelPanel(){
-  const s=sec('model'); s.innerHTML=''; mSyncs.length=0;
-  const B=mSyncs, m=curModel;
-  const ai=document.createElement('div');
-  if(!m){
-    h3(s,'Make something new');
-    addNote(s,'Start a house from settings, start an item from simple shapes, or describe it and let Claude build it.');
-    const bt=document.createElement('div'); bt.className='btns'; s.appendChild(bt);
-    addBtn(bt,'+ New house','primary',()=>newModel('house'));
-    addBtn(bt,'+ New item','',()=>newModel('item'));
-  }else{
-    h3(s,'Name');
-    const nm=document.createElement('input'); nm.className='field'; nm.maxLength=32; nm.value=m.name; s.appendChild(nm);
-    nm.addEventListener('input',()=>{m.name=nm.value||'Untitled';registerModel(m);saveModels();renderLibrary();renderPalette();});
-    const bt=document.createElement('div'); bt.className='btns'; s.appendChild(bt);
-    addBtn(bt,'Place in world','primary',()=>placeModel(m));
-    addBtn(bt,'Frame','',()=>frameModel());
-    addBtn(bt,'All models','',()=>gotoTab('library'));
-    h3(s,'Scale the whole model');
-    const sc=document.createElement('div'); sc.className='chips'; s.appendChild(sc);
-    [[.5,'50%'],[.8,'80%'],[.9,'90%'],[1.1,'110%'],[1.25,'125%'],[2,'200%']].forEach(([k,l])=>{
-      const b=document.createElement('button'); b.className='chip'; b.textContent=l; b.addEventListener('click',()=>scaleModel(k)); sc.appendChild(b);
-    });
-    const sz=addNote(s,''); sz.classList.add('keep'); mSyncs.push(()=>{const b=new THREE.Box3().setFromObject(mGroup);if(b.isEmpty()){sz.textContent='';return;}const v=b.getSize(new THREE.Vector3());sz.textContent='Size now: '+v.x.toFixed(1)+' m wide, '+v.z.toFixed(1)+' m deep, '+v.y.toFixed(1)+' m tall.';});
-  }
-  s.appendChild(ai);
-  /* AI (only where Claude can answer: inside a published Claude page) */
-  if(!HAS_AI){const fa=mFolder(ai,'Make it with AI');addNote(fa,'Describe a building or object, or attach a photo of one, and Claude builds it from shapes.');claudeOnly(fa,'Building from a description or photo');}
-  if(HAS_AI){
-  const fa=mFolder(ai,'Make it with AI');
-  const ta=document.createElement('textarea'); ta.className='field'; ta.style.height='72px';
-  ta.placeholder=m?'Describe a change, e.g. "add a red front door and window boxes", or a new thing to make':'e.g. a food truck, a red mailbox, a two-storey brick house with a porch';
-  fa.appendChild(ta);
-  const ph=document.createElement('div'); ph.style.cssText='display:flex;align-items:center;gap:10px;margin:8px 0'; fa.appendChild(ph);
-  const pin=document.createElement('input'); pin.type='file'; pin.accept='image/*'; pin.hidden=true; ph.appendChild(pin);
-  if(aiPhoto){const t=document.createElement('img');t.src=aiPhoto;t.alt='Reference photo';t.style.cssText='width:72px;height:54px;object-fit:cover;border-radius:6px';ph.appendChild(t);}
-  addBtn(ph,aiPhoto?'Change photo':'Attach a photo…','',()=>pin.click());
-  if(aiPhoto) addBtn(ph,'Remove','warn',()=>{aiPhoto=null;renderModelPanel();});
-  pin.addEventListener('change',async()=>{const f=pin.files[0];pin.value='';if(!f)return;aiSay('Preparing the photo…');aiLoading=true;aiBusy();try{aiPhoto=(await loadPicture(f,1280)).dataURL;aiMsg='Photo attached. Add a few words if you like (e.g. "the house on the left"), then tap Create new.';}catch(err){aiMsg='That file could not be opened as a picture.';}aiLoading=false;renderModelPanel();});
-  const ab=document.createElement('div'); ab.className='btns'; fa.appendChild(ab);
-  const st=addNote(fa,aiMsg||'Claude designs it from simple shapes. Every part stays editable afterwards.'); st.id='aiStatus'; st.classList.add('keep'); st.setAttribute('aria-live','polite');
-  addBtn(ab,'Create new','primary',()=>aiRun(ta.value,false)).id='aiNew';
-  if(m) addBtn(ab,'Change this model','',()=>aiRun(ta.value,true)).id='aiChg';
-  addBtn(ab,'Stop','warn',()=>{if(aiCtl)aiCtl.abort();}).id='aiStop';
-  aiBusy();
-  }
-  if(!m) return;
-  /* house settings */
-  if(m.house){
-    const H=m.house, fh=mFolder(s,'House'), set=(k)=>v=>{H[k]=v;modelChanged();};
-    addSlider(fh,{label:'Width',min:3,max:40,step:.5,get:()=>H.w,set:set('w'),fmt:m1},B);
-    addSlider(fh,{label:'Depth',min:3,max:40,step:.5,get:()=>H.d,set:set('d'),fmt:m1},B);
-    addSlider(fh,{label:'Floors',min:1,max:8,step:1,get:()=>H.floors,set:set('floors'),fmt:v=>v},B);
-    addSlider(fh,{label:'Floor height',min:2.2,max:5,step:.1,get:()=>H.floorH,set:set('floorH'),fmt:m1},B);
-    addSlider(fh,{label:'Windows',min:0,max:8,step:1,get:()=>H.win,set:set('win'),fmt:v=>v+' a side'},B);
-    h3(fh,'Roof');
-    addSeg(fh,[['gable','Gable'],['hip','Hip'],['flat','Flat']],()=>H.roof,set('roof'),B);
-    addSlider(fh,{label:'Steepness',min:.1,max:1.2,step:.05,get:()=>H.pitch,set:set('pitch'),fmt:v=>Math.round(Math.atan(v)*R2D)+'°'},B);
-    h3(fh,'Extras');
-    addToggle(fh,'Front door',()=>H.door,set('door'),B);
-    addToggle(fh,'Porch',()=>H.porch,set('porch'),B);
-    addToggle(fh,'Chimney',()=>H.chimney,set('chimney'),B);
-    addToggle(fh,'Garage',()=>H.garage,set('garage'),B);
-    h3(fh,'Walls'); addSwatches(fh,MCOLORS,()=>H.wall,set('wall'),B);
-    h3(fh,'Roof color'); addSwatches(fh,MCOLORS,()=>H.roofColor,set('roofColor'),B);
-    h3(fh,'Trim'); addSwatches(fh,MCOLORS,()=>H.trim,set('trim'),B);
-    const hb=document.createElement('div'); hb.className='btns'; fh.appendChild(hb);
-    addBtn(hb,'Turn into editable parts','',()=>{m.parts=houseParts(H).map(p=>{const q=Object.assign({rx:0,rz:0},p);delete q.gen;return q;}).concat(m.parts);m.house=null;selPart=-1;modelChanged();renderModelPanel();});
-    addNote(fh,'The house is built from these settings. Add your own parts below for extra details, or turn it into parts to move every piece by hand.');
-  }
-  /* parts */
-  const fp=mFolder(s,'Parts',' ('+m.parts.length+')');
-  const ac=document.createElement('div'); ac.className='chips'; fp.appendChild(ac);
-  SHAPES.forEach(([k,l])=>{
-    const b=document.createElement('button'); b.className='chip add'; b.textContent='+ '+l;
-    b.addEventListener('click',()=>{
-      const top=m.house?m.house.floors*m.house.floorH:0;
-      m.parts.push({shape:k,x:0,y:m.house?0:top,z:m.house?m.house.d/2+1.5:0,w:1,h:1,d:1,rx:0,ry:0,rz:0,color:'#c97b5a'});
-      selPart=m.parts.length-1; mOpen['Selected part']=true; modelChanged(); renderModelPanel();
-    });
-    ac.appendChild(b);
-  });
-  if(m.parts.length){
-    const ls=document.createElement('div'); ls.className='list castlist'; ls.style.maxHeight='220px'; fp.appendChild(ls);
-    const cnt={};
-    m.parts.forEach((p,i)=>{
-      cnt[p.shape]=(cnt[p.shape]||0)+1;
-      const b=document.createElement('button'); b.className=i===selPart?'on':'';
-      b.innerHTML='<i style="background:'+p.color+'"></i>'; b.appendChild(document.createTextNode(SHAPES.find(x=>x[0]===p.shape)[1]+' '+cnt[p.shape]));
-      b.addEventListener('click',()=>selectPart(i)); ls.appendChild(b);
-    });
-  }else addNote(fp,'No parts yet. Add a shape above.');
-  /* selected part */
-  const p=m.parts[selPart];
-  if(p){
-    const fs=mFolder(s,'Selected part'), ch=()=>modelChanged(), pv=k=>({get:()=>p[k],set:v=>{p[k]=v;ch();}});
-    addSeg(fs,SHAPES.map(([k,l])=>[k,l]),()=>p.shape,v=>{p.shape=v;ch();renderModelPanel();},B);
-    h3(fs,'Position');
-    addSlider(fs,Object.assign({label:'Left / right',min:-20,max:20,step:.05,fmt:m2},pv('x')),B);
-    addSlider(fs,Object.assign({label:'Back / front',min:-20,max:20,step:.05,fmt:m2},pv('z')),B);
-    addSlider(fs,Object.assign({label:'Lift',min:0,max:40,step:.05,fmt:m2},pv('y')),B);
-    h3(fs,'Size');
-    addSlider(fs,Object.assign({label:'Width',min:.05,max:30,step:.05,fmt:m2},pv('w')),B);
-    addSlider(fs,Object.assign({label:'Height',min:.05,max:30,step:.05,fmt:m2},pv('h')),B);
-    addSlider(fs,Object.assign({label:'Depth',min:.05,max:30,step:.05,fmt:m2},pv('d')),B);
-    h3(fs,'Rotation');
-    addSlider(fs,Object.assign({label:'Turn',min:-180,max:180,step:1,fmt:dg},pv('ry')),B);
-    addSlider(fs,Object.assign({label:'Tilt',min:-180,max:180,step:1,fmt:dg},pv('rx')),B);
-    addSlider(fs,Object.assign({label:'Roll',min:-180,max:180,step:1,fmt:dg},pv('rz')),B);
-    h3(fs,'Color');
-    addSwatches(fs,MCOLORS,()=>p.color,v=>{p.color=v;ch();renderModelPanel();},B);
-    const crow=document.createElement('label'); crow.className='toggle'; crow.innerHTML='<span>Any color</span>';
-    const ci=document.createElement('input'); ci.type='color'; ci.value=p.color; ci.style.cssText='width:48px;height:32px;border:0;background:none;padding:0;flex:none';
-    ci.addEventListener('input',()=>{p.color=ci.value;ch();}); crow.appendChild(ci); fs.appendChild(crow);
-    const pb=document.createElement('div'); pb.className='btns'; fs.appendChild(pb);
-    addBtn(pb,'Duplicate','',()=>{const c=Object.assign({},p);c.x+=.5;c.z+=.5;m.parts.push(c);selPart=m.parts.length-1;ch();renderModelPanel();});
-    addBtn(pb,'Delete part','warn',()=>{deletePart();});
-    addNote(fs,'Drag the selected part in the picture to slide it around. Backspace deletes it.');
-  }
-  B.forEach(f=>f());
-}
-function scaleModel(k){
-  const m=curModel; if(!m) return;
-  m.parts.forEach(p=>{['x','y','z','w','h','d'].forEach(q=>{p[q]=+(p[q]*k).toFixed(3);});});
-  if(m.house){const H=m.house;H.w=+clamp(H.w*k,3,40).toFixed(2);H.d=+clamp(H.d*k,3,40).toFixed(2);H.floorH=+clamp(H.floorH*k,2.2,5).toFixed(2);}
-  modelChanged(); fitModelView(); renderModelPanel(); toast('Model scaled to '+Math.round(k*100)+'%');
-}
-function deletePart(){
-  if(!curModel||selPart<0) return;
-  curModel.parts.splice(selPart,1); selPart=-1; modelChanged(); renderModelPanel();
-}
-function renderLibrary(){
-  const s=sec('library'); s.innerHTML='';
-  h3(s,'New');
-  const bt=document.createElement('div'); bt.className='btns'; s.appendChild(bt);
-  addBtn(bt,'+ New house','primary',()=>newModel('house'));
-  addBtn(bt,'+ New item','',()=>newModel('item'));
-  if(HAS_AI) addBtn(bt,'Make it with AI','',()=>{if(!curModel)renderModelPanel();mOpen['Make it with AI']=true;gotoTab('model');renderModelPanel();const t=$('section[data-tab="model"] textarea');if(t)t.focus();});
-  h3(s,'Your models ('+models.length+')');
-  if(!models.length){addNote(s,'Nothing here yet. Models you make show up here and under Custom in the world strip.');return;}
-  models.forEach(m=>{
-    const row=document.createElement('div'); row.className='mrow'+(m===curModel?' on':'');
-    const hd=document.createElement('div'); hd.className='mhd';
-    const b=document.createElement('b'); b.textContent=m.name; hd.appendChild(b);
-    const sp=document.createElement('span'); sp.textContent=(m.house?'House':'Item')+' · '+modelParts(m).length+' parts'; hd.appendChild(sp);
-    row.appendChild(hd);
-    const acts=document.createElement('div'); acts.className='acts'; row.appendChild(acts);
-    const mk=(t,fn,cls)=>{const x=document.createElement('button');x.textContent=t;if(cls)x.className=cls;x.addEventListener('click',fn);acts.appendChild(x);return x;};
-    mk('Edit',()=>editModel(m));
-    mk('Place',()=>placeModel(m));
-    mk('Duplicate',()=>{const c=JSON.parse(JSON.stringify(m));c.id=modelSeq++;c.name=(m.name+' copy').slice(0,32);models.push(c);registerModel(c);refreshCats();saveModels();renderLibrary();renderPalette();});
-    let armed=null;
-    const del=mk('Delete',()=>{
-      if(!armed){del.textContent='Tap again';armed=setTimeout(()=>{armed=null;del.textContent='Delete';},3000);return;}
-      clearTimeout(armed); deleteModel(m);
-    },'warn');
-    s.appendChild(row);
-  });
 }
 
 /* =====================================================================
@@ -4229,7 +3069,7 @@ function groundFeet(c){
   });
   if(isFinite(lo)) c.bodyPivot.position.y-=lo;
 }
-let poseChar=null, poseJoint='shR', posePrev='build';
+let poseChar=null, poseJoint='shR', posePrev='direct';
 const pHandles=new THREE.Group(); pHandles.visible=false; mScene.add(pHandles);
 const pHmat=new THREE.MeshBasicMaterial({color:C(0xf5c400),depthTest:false,transparent:true,opacity:.9,toneMapped:false});
 const pHsel=new THREE.MeshBasicMaterial({color:0xffffff,depthTest:false,toneMapped:false});
@@ -4239,7 +3079,7 @@ pFloorRing.rotation.x=-Math.PI/2; pFloorRing.position.y=.004; pFloorRing.visible
 function enterPose(c){
   if(!c) return;
   if(appMode==='pose') exitPose(true);
-  posePrev=appMode==='model'?'build':appMode; poseChar=c; c.adj=c.adj||{};
+  posePrev='direct'; poseChar=c; c.adj=c.adj||{};
   sel=chars.indexOf(c); focus='char';
   setAppMode('pose');
   scene.remove(c.root); mScene.add(c.root); c.root.position.set(0,0,0); c.root.rotation.y=0;
@@ -4253,7 +3093,7 @@ function exitPose(silent){
   const c=poseChar; poseChar=null;
   mGroup.visible=true; pHandles.visible=false; pFloorRing.visible=false;
   if(c&&c.root.parent===mScene){mScene.remove(c.root);scene.add(c.root);c.label.visible=showLabels;placeChar(c);}
-  if(!silent) setAppMode(posePrev||'build');
+  if(!silent) setAppMode('direct');
   refreshUI(); later(30);
 }
 function renderPose(w,h){
@@ -4267,7 +3107,7 @@ function focusJoint(k){
   const c=poseChar; if(!c) return; c.root.updateMatrixWorld(true);
   jointAt(c,k).getWorldPosition(orbit.target); orbit.dist=Math.min(orbit.dist,k==='head'?1.1:1.6);
 }
-function minDist(){return appMode==='pose'?.45:appMode==='model'?.8:2;}
+function minDist(){return appMode==='pose'?.45:2;}
 function posePointerDown(x,y,e){
   setRay(x,y);
   const hs=ray.intersectObjects(pHandles.children,false);
@@ -4373,13 +3213,11 @@ function poseSafe(fn){
   renderPosePanel();
 }
 function undo(){
-  if(appMode==='model'){mUndo();return;}
   clearTimeout(hist.t); checkpoint();
   if(!hist.undo.length){toast('Nothing to undo');return;}
   hist.redo.push(hist.cur); const j=hist.undo.pop(); poseSafe(()=>restoreScene(j)); syncUndoBtns(); toast('Undone');
 }
 function redo(){
-  if(appMode==='model'){mRedo();return;}
   clearTimeout(hist.t); checkpoint();
   if(!hist.redo.length){toast('Nothing to redo');return;}
   hist.undo.push(hist.cur); const j=hist.redo.pop(); poseSafe(()=>restoreScene(j)); syncUndoBtns(); toast('Redone');
@@ -4411,31 +3249,18 @@ function applyUiMode(){
 function cycleUi(){uiMode=uiMode?0:1;applyUiMode();if(uiMode)toast('Press the Show button, or H, to bring the controls back');}
 $('#uiBtn').addEventListener('click',cycleUi);
 /* Reference: pick a picture the first time, then switch it on and off over the camera frame */
-$('#refBtn').addEventListener('click',()=>{
-  if(!still.src){toast('Choose a reference picture: a film still, a photo or a drawing');pickStill();return;}
-  still.show=!still.show; applyStill(); refreshUI(); autosave();
-  if(still.show){if(view!=='camera')setView('camera');toast('Reference on. Change the picture or see-through amount in Camera tab > Match a film still');}
-});
-$('#stickBtn').addEventListener('click',()=>{fly.sticks=!fly.sticks;layoutOverlays();refreshUI();});
 window.addEventListener('keydown',e=>{
   const typing=/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)&&!/^(range|checkbox|radio|button)$/.test(e.target.type||'');
   if(typing) return;
-  if(appMode==='model'&&(e.ctrlKey||e.metaKey)&&e.code==='KeyD'){e.preventDefault();dupPart();return;}
-  if(appMode==='model'&&!e.ctrlKey&&!e.metaKey&&!e.altKey&&/^Arrow/.test(e.key)&&selP()){
-    const st=e.shiftKey?.5:.05, d={ArrowLeft:[-st,0],ArrowRight:[st,0],ArrowUp:[0,st],ArrowDown:[0,-st]}[e.key];
-    if(nudgePart(d[0],d[1])) e.preventDefault(); return;
-  }
   if(e.metaKey||e.ctrlKey||e.altKey) return;
   if(e.code==='KeyH') cycleUi();
   else if(e.code==='KeyP') setPanel(!$('#app').classList.contains('panelopen'));
   else if(e.key==='Backspace'||e.key==='Delete'){
     if($('#inkEd').style.display==='flex') return;
     e.preventDefault();
-    if(appMode==='model'){deletePart();return;}
     if(appMode==='pose') return;
     if(shotMode==='nodes'){if(bv.sel)$('#shDelete').click();return;}
     if(placing) setPlacing(null);
-    if(focus==='group'&&grpOf(selGroup)){const n=grpOf(selGroup).name;deleteGroup(selGroup);toast(n+' deleted. Ctrl+Z brings it back');return;}
     if(focus==='item'&&world.items[selItem]){
       const it=world.items[selItem]; unmountItem(it); world.items.splice(selItem,1); selectItem(-1); toast('Deleted. Ctrl+Z brings it back');
     }else if(focus==='char'&&chars[sel]){
@@ -4462,7 +3287,7 @@ function applyState(s){
     const items=migrateRooms(s.world,s.room);
     world.groups=Array.isArray(s.world.groups)?JSON.parse(JSON.stringify(s.world.groups)):[];
     if(JSON.stringify(items)!==JSON.stringify(world.items)){rebuildWorld(items);}
-    pruneGroups(); if(focus==='group'&&!grpOf(selGroup)){selGroup=null;focus='char';}
+    pruneGroups(); selGroup=null; if(focus!=='char') focus='char';
   }
   if(!s.world&&s.room){world.showRoom=false;rebuildWorld([legacyRoomItem(s.room,[])]);}
   clearChars(); (s.chars||[]).slice(0,MAX_CHARS).forEach(o=>addChar(o,true));
@@ -4704,7 +3529,6 @@ function blocked(x,z){
 }
 function addCivilians(n){
   const o=optics(), [F,Rt]=camFwd(), hf=o.hf*D2R*.92, R=Math.random, made=[];
-  let g=world.groups.find(x=>x.name==='Civilians');
   for(let i=0;i<n;i++){
     for(let tries=0;tries<25;tries++){
       const d=3+Math.pow(R(),.7)*32, a=(R()-.5)*hf, x=cam.x+F[0]*d*Math.cos(a)+Rt[0]*d*Math.sin(a), z=cam.z+F[1]*d*Math.cos(a)+Rt[1]*d*Math.sin(a);
@@ -4715,7 +3539,6 @@ function addCivilians(n){
     }
   }
   if(!made.length){toast('No open ground in front of the camera');return;}
-  if(g) made.forEach(it=>{it.grp=g.id;}); else makeGroup(made,'Civilians');
   renderItemList(); later(30); autosave();
   toast(made.length+' civilian'+(made.length>1?'s':'')+' added'+(made.length<n?' (no room for more here)':''));
 }
@@ -4747,6 +3570,18 @@ function renderCastPop(){
   const add=document.createElement('button'); add.className='cpgo'; add.textContent='Add to shot'; add.addEventListener('click',()=>addCivilians(civCount)); bt2.appendChild(add);
   const rm=document.createElement('button'); rm.className='cpwarn'; rm.textContent='Remove all'; rm.addEventListener('click',removeCivilians); bt2.appendChild(rm);
 }
+/* take the 3D view straight to the camera, with a beam of light over it */
+function findCamera(){
+  if(view==='camera') setView('director');
+  const y=cam.yaw*D2R, back=6;
+  if(view==='director'){glideTo(cam.x-Math.sin(y)*2,cam.z-Math.cos(y)*2,Math.max(.8,cam.y*.8),Math.min(orbit.dist,12));orbit.az=y+Math.PI*.15;}
+  else if(isOrtho(view)){const o=ov[view];if(view==='top'){o.a=cam.x;o.b=cam.z;}else if(view==='front'){o.a=cam.x;o.b=cam.y;}else{o.a=cam.z;o.b=cam.y;}o.span=Math.min(o.span,20);}
+  camBeamT=4;
+}
+let camBeamT=0;
+const camBeam=new THREE.Mesh(new THREE.CylinderGeometry(.35,.35,40,20,1,true),new THREE.MeshBasicMaterial({color:C(0x56b4ff),transparent:true,opacity:.3,depthWrite:false,side:THREE.DoubleSide,toneMapped:false,fog:false}));
+camBeam.visible=false; camBeam.renderOrder=30; camBeam.userData.nopick=true; scene.add(camBeam);
+$('#camGoBtn').addEventListener('click',findCamera);
 $('#castBtn').addEventListener('click',()=>{const p=$('#castPop'),open=p.style.display==='block';if(open){p.style.display='none';$('#castBtn').classList.remove('on');}else{renderCastPop();p.style.display='block';$('#castBtn').classList.add('on');}});
 /* ---------- Pictures on shots: import any image as a shot, or onto one ---------- */
 async function pictureToShot(file){
@@ -4909,109 +3744,6 @@ function inkEnd(e){
 }
 inkCv.addEventListener('pointerup',inkEnd); inkCv.addEventListener('pointercancel',inkEnd);
 
-/* ---------- Saved locations ---------- */
-let locations=[], locSeq=1;
-const locList=document.createElement('div');
-function captureLocationThumb(){
-  const w=stage.clientWidth,h=stage.clientHeight; if(!w||!h) return '';
-  const rw=Math.min(w-20,(h-20)*1.5), rh=rw/1.5, r={left:(w-rw)/2,top:(h-rh)/2,width:rw,height:rh};
-  const saveView=view, saveOv=Object.assign({},ov.top);
-  view='top';
-  let x0=1e9,x1=-1e9,z0=1e9,z1=-1e9; const add=(x,z)=>{x0=Math.min(x0,x);x1=Math.max(x1,x);z0=Math.min(z0,z);z1=Math.max(z1,z);};
-  if(world.showRoom){add(-room.w/2,-room.d/2);add(room.w/2,room.d/2);}
-  world.items.forEach(it=>{
-    const f=fpOf(it), a=f.rot*D2R, c=Math.cos(a), sn=Math.sin(a);
-    [[-1,-1],[1,-1],[1,1],[-1,1]].forEach(([p,q])=>{const lx=p*f.w/2, lz=q*f.d/2; add(f.cx+lx*c+lz*sn,f.cz-lx*sn+lz*c);});
-  });
-  if(x0>1e8){x0=-8;x1=8;z0=-6;z1=6;}
-  const pad=3;
-  ov.top={a:(x0+x1)/2,b:(z0+z1)/2,span:Math.max((z1-z0)+pad*2,((x1-x0)+pad*2)/1.5),init:true};
-  setLook('ortho'); focusShadow(ov.top.a,ov.top.b);
-  mapMarks.visible=false; itemOutline.visible=false; selRing.visible=false;
-  renderer.setScissorTest(false); renderer.setViewport(0,0,w,h); renderer.setClearColor(0x000000,1); renderer.clear();
-  updateOrtho(rw,rh);
-  scissorRender(r,w,h,orthoCam);
-  const pr=renderer.getPixelRatio(), out=document.createElement('canvas'); out.width=360; out.height=240;
-  out.getContext('2d').drawImage(canvas,r.left*pr,r.top*pr,r.width*pr,r.height*pr,0,0,360,240);
-  view=saveView; ov.top=saveOv;
-  return out.toDataURL('image/jpeg',.82);
-}
-function makeLocation(name,keepId){
-  return {id:keepId||locSeq++,name,thumb:captureLocationThumb(),
-    room:JSON.parse(JSON.stringify(room)),light:JSON.parse(JSON.stringify(L)),
-    world:JSON.parse(JSON.stringify({ground:world.ground,lamps:world.lamps,showRoom:false,rooms:true,items:world.items}))};
-}
-function applyLocation(loc){
-  Object.assign(room,JSON.parse(JSON.stringify(loc.room))); room.kind=loc.room.kind||'room';
-  room.open=Object.assign({front:false,back:false,left:false,right:false,ceil:false},room.open);
-  if(locLight&&loc.light) Object.assign(L,JSON.parse(JSON.stringify(loc.light)));
-  const w=loc.world||{};
-  world.ground=w.ground||'auto'; world.lamps=w.lamps||'auto'; world.showRoom=false;
-  rebuildWorld(migrateRooms(w,loc.room));
-  ov.top.init=ov.front.init=ov.side.init=false; if(isOrtho(view)) fitOrtho(view);
-  setRoom(); fitDirector(); renderItemEditor(); renderItemList(); refreshUI();
-}
-function renderLocations(){
-  locList.innerHTML='';
-  if(!locations.length){locList.innerHTML='<p class="note">No saved locations yet. Build a room or a street, then save it here to reuse it in any project.</p>';return;}
-  locations.forEach((loc,i)=>{
-    const d=document.createElement('div'); d.className='loc';
-    d.innerHTML='<img alt="" src="'+loc.thumb+'"><div><input class="field" maxlength="28"><div class="acts"><button data-a="load">Load</button><button data-a="update">Update</button><button data-a="del">Delete</button></div></div>';
-    const inp=$('input',d); inp.value=loc.name; inp.addEventListener('input',()=>{loc.name=inp.value||'Untitled';});
-    let armed=null;
-    d.addEventListener('click',e=>{
-      const a=e.target.dataset&&e.target.dataset.a; if(!a) return;
-      const b=e.target;
-      if(a==='load'||a==='del'){
-        if(!armed){const t=b.textContent;b.textContent='Tap again';armed=setTimeout(()=>{armed=null;b.textContent=t;},2500);return;}
-        clearTimeout(armed); armed=null;
-        if(a==='load'){applyLocation(loc);toast('Loaded '+loc.name);}
-        else{locations.splice(i,1);renderLocations();}
-      }else if(a==='update'){
-        locations[i]=makeLocation(loc.name,loc.id); renderLocations(); toast('Updated '+loc.name);
-      }
-    });
-    locList.appendChild(d);
-  });
-}
-function exportLocations(){
-  if(!locations.length){toast('Save a location first');return;}
-  download(new Blob([JSON.stringify({app:'storyboard-stage-locations',v:1,locations})],{type:'application/json'}),'storyboard-locations.json');
-  toast('Library saved');
-}
-$('#locIn').addEventListener('change',e=>{
-  const f=e.target.files[0]; if(!f) return;
-  const rd=new FileReader();
-  rd.onload=()=>{
-    try{
-      const d=JSON.parse(rd.result); if(d.app!=='storyboard-stage-locations'||!Array.isArray(d.locations)) throw new Error('bad');
-      d.locations.forEach(l=>{l.id=locSeq++;locations.push(l);});
-      renderLocations(); toast('Imported '+d.locations.length+' location'+(d.locations.length===1?'':'s'));
-    }catch(err){toast('That file is not a locations library');}
-  };
-  rd.readAsText(f); e.target.value='';
-});
-
-(function(){
-  const wrap=document.createElement('details'); wrap.className='more';
-  const lsum=document.createElement('summary'); lsum.textContent='Saved locations'; wrap.appendChild(lsum);
-  addNote(wrap,'A location is the room and the world around it. Save as many as you like and reuse them in any project.');
-  const row=document.createElement('div'); row.style.cssText='display:flex;gap:8px;margin:8px 0';
-  const nm=document.createElement('input'); nm.className='field'; nm.placeholder='Location name'; nm.maxLength=28; row.appendChild(nm);
-  const sv=addBtn(row,'Save current','primary',()=>{
-    const name=nm.value.trim()||('Location '+(locations.length+1));
-    locations.push(makeLocation(name)); nm.value=''; renderLocations(); toast('Saved '+name);
-  });
-  sv.style.whiteSpace='nowrap';
-  wrap.appendChild(row);
-  wrap.appendChild(locList);
-  const bt=document.createElement('div'); bt.className='btns'; wrap.appendChild(bt);
-  addBtn(bt,'Export library','',exportLocations);
-  addBtn(bt,'Import library','',()=>$('#locIn').click());
-  sec('world').appendChild(wrap);
-  renderLocations();
-})();
-
 /* ---------- Minimap of the shot nodes (always visible, top right) ---------- */
 const miniCv=$('#miniCv'), miniCtx=miniCv.getContext('2d'), miniImgs=new Map();
 let miniMap=null, miniLast={f:null,t:0};
@@ -5143,7 +3875,7 @@ function rng32(a){return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a)
 /* a compact Midtown-style grid: avenues, cross streets and a diagonal Broadway, with landmarks, sewers, steam and roadworks */
 function nycState(){
   const R=rng32(1931), items=[], groups=[]; let id=1;
-  const add=(type,props,grp)=>{const t=CATALOG[type];const it=Object.assign({id:id++,type,x:0,z:0,rot:0},JSON.parse(JSON.stringify(t.def)),props);if(t.base)customSize(it);it.grp=grp;items.push(it);return it;};
+  const add=(type,props,grp)=>{const t=CATALOG[type];const it=Object.assign({id:id++,type,x:0,z:0,rot:0},JSON.parse(JSON.stringify(t.def)),props);it.grp=grp;items.push(it);return it;};
   const G=(name)=>{const g={id:groups.length+1,name,open:false};groups.push(g);return g.id;};
   const gS=G('Streets'), gL=G('Landmarks'), gB=G('Buildings'), gW=G('Sewers and steam'), gC=G('Construction'), gF=G('Street furniture'), gV=G('Traffic');
   const AV=[-90,-30,30,90], ST=[-100,-60,-20,20,60,100], E=132, AW=14, SW=10, WK=2.2, BW=12, BC=37;
@@ -5305,7 +4037,7 @@ function openWorld(st,name){
     Object.assign(ov.top,{a:0,b:0,span:290,init:true}); Object.assign(ov.front,{a:0,b:40,span:240,init:true}); Object.assign(ov.side,{a:0,b:40,span:240,init:true});}
   else{fitDirector();['top','front','side'].forEach(v=>{ov[v].init=false;});}
   if(st.preset&&LIGHT_PRESETS[st.preset]){setPreset(st.preset);applyLights();}
-  if(appMode!=='build') setAppMode('build');
+  if(appMode!=='direct') setAppMode('direct');
   setView('director'); renderItemList(); renderItemEditor(); refreshUI(); later(30); autosave();
   toast(name+' opened. Undo brings back what you had');
 }
@@ -5339,16 +4071,12 @@ function idb(){
 }
 async function idbGet(k){const db=await idb();return new Promise((res,rej)=>{const q=db.transaction(AS_STORE,'readonly').objectStore(AS_STORE).get(k);q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error);});}
 async function idbSet(k,v){const db=await idb();return new Promise((res,rej)=>{const tx=db.transaction(AS_STORE,'readwrite');tx.objectStore(AS_STORE).put(v,k);tx.oncomplete=()=>res();tx.onerror=()=>rej(tx.error);});}
-function projectData(){return Object.assign({app:'storyboard-stage',v:4,savedAt:Date.now()},snapshot(),{frames,locations,models,still:still.src?{src:still.src,w:still.w,h:still.h,show:still.show,opacity:still.opacity}:null});}
+function projectData(){return Object.assign({app:'storyboard-stage',v:4,savedAt:Date.now()},snapshot(),{frames});}
 /* a project from a file or from autosave */
 function applyProject(d){
   if(d.light&&typeof d.light==='object'&&d.light.key){Object.assign(L,JSON.parse(JSON.stringify(d.light)));applyLights();}
-  if(Array.isArray(d.models)&&d.models.length){setModels(d.models);saveModels();curModel=null;selPart=-1;rebuildModelView();renderModelPanel();renderLibrary();renderPalette();}
   applyState(d);
   frames=Array.isArray(d.frames)?d.frames:[];
-  if(Array.isArray(d.locations)){locations=d.locations;locSeq=1+locations.reduce((m,l)=>Math.max(m,l.id||0),0);renderLocations();}
-  if(d.still&&typeof d.still.src==='string'&&d.still.src.startsWith('data:image/')){Object.assign(still,d.still);}else{still.src=null;}
-  applyStill();
   bv.sel=null; renderShots();
   hist.undo.length=0; hist.redo.length=0; hist.cur=sceneJSON(); syncUndoBtns();
 }
@@ -5385,21 +4113,19 @@ $('#verBtn').addEventListener('click',async()=>{
   try{const found=await window.__checkUpdate(); toast(found?'Updating to the newest version…':'You have the newest version');}catch(err){toast('Could not check right now. Try again with internet');}
 });
 function newProject(){
-  frames=[]; locations=[]; renderLocations(); bv.sel=null;
+  frames=[]; bv.sel=null;
   world.showRoom=false; world.groups=[]; rebuildWorld([newItem('room',0,0)]);
   clearChars(); addChar({name:'Alex',x:-.6,z:-.3,rot:25,pose:'stand'}); addChar({name:'Blake',x:.8,z:-.5,rot:-30,pose:'sit'}); sel=0;
   Object.assign(cam,{x:CAM_HOME.x,y:CAM_HOME.y,z:CAM_HOME.z,yaw:0,pitch:0,roll:0}); updateCamPose();
   setRoom(); fitDirector(); renderChips(); renderItemEditor(); renderItemList(); renderShots(); refreshUI();
   hist.undo.length=0; hist.redo.length=0; hist.cur=sceneJSON(); syncUndoBtns();
-  autosave(true); toast('New project started. Your models are still in the Library');
+  autosave(true); toast('New project started');
 }
 
 /* =====================================================================
    Start
    ===================================================================== */
-try{setModels(JSON.parse(localStorage.getItem(MODEL_KEY)||'[]'));}catch(err){setModels([]);}
 renderWorlds();
-renderModelPanel(); renderLibrary(); renderPalette();
 setRoom();
 fitDirector();
 world.showRoom=false; rebuildWorld([newItem('room',0,0)]);
@@ -5408,7 +4134,7 @@ addChar({name:'Blake',x:.8,z:-.5,rot:-30,pose:'sit'});
 sel=0;
 updateShotCam(); renderChips(); renderItemList(); renderShots(); refreshUI();
 setView('director');
-setAppMode('build',true);
+setAppMode('direct',true);
 resize();
 hist.cur=sceneJSON(); syncUndoBtns();
 restoreAutosave();
