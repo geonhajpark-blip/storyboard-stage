@@ -161,6 +161,8 @@ html.compact #mpadLift{grid-template-rows:42px 42px}
 #app.panelopen #stickR{right:calc(var(--pw) + 24px)}
 #app.panelopen #stage.mode-build #presetBar{right:calc(var(--pw) + 20px)}
 #stage.clean #modeSeg,#stage.clean #panelBtn{display:none!important}
+#poseDoneBtn{display:none}
+#stage.mode-pose #poseDoneBtn{display:flex}
 #camGoBtn{display:none}
 #stage:not(.mode-pose) #camGoBtn{display:block}
 #stage.clean #camGoBtn,#stage.boardmode #camGoBtn{display:none!important}
@@ -431,6 +433,7 @@ html.compact #panel{right:calc(6px + var(--sr,0px));bottom:calc(6px + var(--sb,0
         <button class="tbtn" id="stickBtn" style="display:none">Sticks</button>
         <button class="tbtn sq" id="undoBtn" aria-label="Undo" title="Undo (Ctrl+Z)">&#8630;</button>
         <button class="tbtn sq" id="redoBtn" aria-label="Redo" title="Redo (Ctrl+Shift+Z)">&#8631;</button>
+        <button class="shotbtn" id="poseDoneBtn" title="Finish posing (Esc)">Done posing</button>
         <button class="tbtn" id="camGoBtn" title="Go to where the camera is">Find camera</button>
         <button class="tbtn" id="castBtn" title="Bring characters and civilians into the shot">Cast</button>
         <button class="tbtn" id="uiBtn">Hide UI</button>
@@ -505,7 +508,7 @@ const D2R=Math.PI/180, R2D=180/Math.PI;
 const $=(s,r=document)=>r.querySelector(s);
 /* Claude features (AI models, matching a still) work only inside the published Claude page */
 const HAS_AI=!!(window.claude&&typeof window.claude.use==='function');
-const APP_VERSION='22 (15 Nov 2026)';
+const APP_VERSION='23 (15 Nov 2026)';
 const clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
 const stage=$('#stage'), canvas=$('#gl');
 
@@ -2037,7 +2040,7 @@ function fitDirector(){orbit.target.set(0,Math.min(room.h*.3,1),0);orbit.dist=Ma
    ===================================================================== */
 let view='director';
 const isOrtho=v=>v==='top'||v==='front'||v==='side';
-const fly={speed:2,yawRate:70,smooth:.6,expo:.5,mode:2,pointing:false,sticks:true,mouse:false,sens:.12,invY:false,vel:{f:0,r:0,u:0,yw:0,tl:0}};
+const fly={speed:4,yawRate:70,smooth:.6,expo:.5,mode:2,pointing:false,sticks:true,mouse:false,sens:.12,invY:false,vel:{f:0,r:0,u:0,yw:0,tl:0}};
 function panelCover(){const a=$('#app');return a.classList.contains('panelopen')&&!a.classList.contains('uiclean')?$('#panel').offsetWidth+10:0;}
 function frameRect(w,h){
   const ar=ASPECTS[cam.aspect], pad=10, po=panelCover(), aw=w-pad*2-po, ah=h-pad*2;
@@ -2312,15 +2315,18 @@ function readInput(){
   };
 }
 let uiAccum=0;
+let holdT=0;
+function readHeld(){try{const gp=pollPad();return Math.abs(gp.Lx)+Math.abs(gp.Ly)>.1;}catch(err){return false;}}
 function flight(dt){
   const inp=readInput(), v=fly.vel, k=1-Math.exp(-dt*(30-27*fly.smooth));
-  const spd=fly.speed*(keys.has('boost')?3:1);
+  const held=!!(keys.size||readHeld()); holdT=held?holdT+dt:0;
+  const spd=fly.speed*(keys.has('boost')?3:1)*(1+Math.min(2,holdT*.8));   /* hold an arrow and it speeds up, up to 3x */
   v.f+=(inp.fwd*spd-v.f)*k; v.r+=(inp.str*spd-v.r)*k; v.u+=(inp.thr*spd*.6-v.u)*k;
   v.yw+=(inp.yaw*fly.yawRate-v.yw)*k; v.tl+=(inp.tilt*45-v.tl)*k;
   for(const key in v) if(Math.abs(v[key])<.002) v[key]=0;
   if(!v.f&&!v.r&&!v.u&&!v.yw&&!v.tl){uiAccum=0;return false;}
   if(view==='director'&&appMode!=='model'&&appMode!=='pose'){
-    const sp=Math.max(1.5,orbit.dist*.55)/Math.max(.3,fly.speed), s=Math.sin(orbit.az), c=Math.cos(orbit.az);
+    const sp=Math.max(2.5,orbit.dist*.9)/Math.max(.3,fly.speed), s=Math.sin(orbit.az), c=Math.cos(orbit.az);
     orbit.target.x+=(-s*v.f+c*v.r)*sp*dt; orbit.target.z+=(-c*v.f-s*v.r)*sp*dt;
     orbit.target.y=clamp(orbit.target.y+v.u*sp*dt,0,200);
     orbit.az-=v.yw*D2R*dt; orbit.target.x=clamp(orbit.target.x,-WORLD_HALF,WORLD_HALF); orbit.target.z=clamp(orbit.target.z,-WORLD_HALF,WORLD_HALF);
@@ -2431,7 +2437,7 @@ function panTarget(dx,dy){
   orbit.target.z+= s*dx*k + (-c)*dy*k;
 }
 function slideCam(dx,dy){
-  const k=.006*Math.max(1,cam.y*.5), y=cam.yaw*D2R;
+  const k=.014*Math.max(1,cam.y*.5), y=cam.yaw*D2R;
   cam.x=clamp(cam.x-Math.cos(y)*dx*k,-CAM_LIMIT,CAM_LIMIT); cam.z=clamp(cam.z+Math.sin(y)*dx*k,-CAM_LIMIT,CAM_LIMIT);
   cam.y=clamp(cam.y+dy*k,.05,CAM_MAX_H); updateCamPose(); refreshUI();
 }
@@ -2625,7 +2631,7 @@ canvas.addEventListener('pointermove',e=>{
       const s=ov[view], wpp=s.span/stage.clientHeight;
       s.span=clamp(s.span*(pinch.d/Math.max(d,1)),1.5,250);
       s.a-=(mx-pinch.mx)*wpp; s.b+=(view==='top'?-(my-pinch.my):(my-pinch.my))*wpp;
-    }else{dolly((d-pinch.d)*.012); slideCam(mx-pinch.mx,my-pinch.my);}
+    }else{dolly((d-pinch.d)*.03); slideCam(mx-pinch.mx,my-pinch.my);}
     pinch={d,mx,my};
   }
 });
@@ -2646,7 +2652,7 @@ canvas.addEventListener('wheel',e=>{
   e.preventDefault();
   if(view==='director') orbit.dist=clamp(orbit.dist*Math.exp(e.deltaY*.0012),minDist(),450);
   else if(isOrtho(view)){const s=ov[view];s.span=clamp(s.span*Math.exp(e.deltaY*.0012),1.5,250);}
-  else dolly(-e.deltaY*.004);
+  else dolly(-e.deltaY*.01);
 },{passive:false});
 /* drag the camera window to move it, drag its corner to resize it, tap it to open Camera view */
 (function(){
@@ -2973,7 +2979,7 @@ function nearestAspect(r){return Object.keys(ASPECTS).reduce((a,k)=>Math.abs(Mat
   const fsum=document.createElement('summary'); fsum.textContent='How to move the camera'; fd.appendChild(fsum);
   addNote(fd,'Touch: drag the picture to look around. Pinch to move in or out, and drag with two fingers to slide sideways or up and down. Hold the arrow pad to walk, and the Up and Down buttons to raise or lower the camera.');
   addNote(fd,'Mouse and keyboard: drag to look, scroll to move in or out, right-drag (or Shift-drag) to slide. Walk with W A S D or the arrow keys, E and Q go up and down, hold Shift to hurry.');
-  addSlider(fd,{label:'Walk speed',min:.3,max:12,step:.1,get:()=>fly.speed,set:v=>{fly.speed=v;},fmt:v=>v.toFixed(1)+' m/s'});
+  addSlider(fd,{label:'Walk speed',min:.5,max:20,step:.1,get:()=>fly.speed,set:v=>{fly.speed=v;},fmt:v=>v.toFixed(1)+' m/s'});
   addSlider(fd,{label:'Smoothness',min:0,max:1,step:.05,get:()=>fly.smooth,set:v=>{fly.smooth=v;},fmt:v=>Math.round(v*100)+'%'});
   addToggle(fd,'Show the walk buttons',()=>fly.sticks,v=>{fly.sticks=v;layoutOverlays();});
   addToggle(fd,'Walk where the camera points (fly)',()=>fly.pointing,v=>{fly.pointing=v;});
@@ -3624,6 +3630,8 @@ let camBeamT=0;
 const camBeam=new THREE.Mesh(new THREE.CylinderGeometry(.35,.35,40,20,1,true),new THREE.MeshBasicMaterial({color:C(0x56b4ff),transparent:true,opacity:.3,depthWrite:false,side:THREE.DoubleSide,toneMapped:false,fog:false}));
 camBeam.visible=false; camBeam.renderOrder=30; camBeam.userData.nopick=true; scene.add(camBeam);
 $('#camGoBtn').addEventListener('click',findCamera);
+$('#poseDoneBtn').addEventListener('click',()=>{if(appMode==='pose')exitPose();});
+window.addEventListener('keydown',e=>{if(e.key==='Escape'&&appMode==='pose'&&!/^(INPUT|TEXTAREA)$/.test(e.target.tagName))exitPose();});
 $('#castBtn').addEventListener('click',()=>{const p=$('#castPop'),open=p.style.display==='block';if(open){p.style.display='none';$('#castBtn').classList.remove('on');}else{renderCastPop();p.style.display='block';$('#castBtn').classList.add('on');}});
 /* ---------- Pictures on shots: import any image as a shot, or onto one ---------- */
 async function pictureToShot(file){
