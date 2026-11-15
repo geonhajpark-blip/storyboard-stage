@@ -505,7 +505,7 @@ const D2R=Math.PI/180, R2D=180/Math.PI;
 const $=(s,r=document)=>r.querySelector(s);
 /* Claude features (AI models, matching a still) work only inside the published Claude page */
 const HAS_AI=!!(window.claude&&typeof window.claude.use==='function');
-const APP_VERSION='21 (14 Nov 2026)';
+const APP_VERSION='22 (15 Nov 2026)';
 const clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
 const stage=$('#stage'), canvas=$('#gl');
 
@@ -2361,10 +2361,50 @@ function loop(now){
    ===================================================================== */
 const ray=new THREE.Raycaster(), ndc=new THREE.Vector2(), floorPlane=new THREE.Plane(new THREE.Vector3(0,1,0),0), tmpV=new THREE.Vector3();
 const ptrs=new Map(); let mode=null, drag=null, pinch=null;
-function setRay(x,y){ndc.set(x/stage.clientWidth*2-1,-(y/stage.clientHeight)*2+1);ray.setFromCamera(ndc,isOrtho(view)?orthoCam:orbitCam);}
+function setRay(x,y){
+  if(view==='camera'&&appMode!=='pose'){const r=frameRect(stage.clientWidth,stage.clientHeight);ndc.set((x-r.left)/r.width*2-1,-((y-r.top)/r.height)*2+1);ray.setFromCamera(ndc,shotCam);return;}
+  ndc.set(x/stage.clientWidth*2-1,-(y/stage.clientHeight)*2+1);ray.setFromCamera(ndc,isOrtho(view)?orthoCam:orbitCam);
+}
+/* where a point in the world shows on screen, in the view that's showing */
+const scrV=new THREE.Vector3();
+function toScreen(x,y,z){
+  const w=stage.clientWidth,h=stage.clientHeight;
+  if(view==='camera'){const r=frameRect(w,h);scrV.set(x,y,z).project(shotCam);if(scrV.z>1)return null;return {x:r.left+(scrV.x+1)/2*r.width,y:r.top+(1-scrV.y)/2*r.height};}
+  scrV.set(x,y,z).project(isOrtho(view)?orthoCam:orbitCam); if(scrV.z>1) return null;
+  return {x:(scrV.x+1)/2*w,y:(1-scrV.y)/2*h};
+}
+/* a forgiving pick for characters: anywhere near their body or name label counts, nearest wins */
+/* where the pointer meets a level plane at height h (the height you pressed a character at) */
+const dragPlane=new THREE.Plane(new THREE.Vector3(0,1,0),0);
+function planeXZ(x,y,h){setRay(x,y);dragPlane.constant=-h;const q=ray.ray.intersectPlane(dragPlane,tmpV);return q?[q.x,q.z]:null;}
+/* how high up a character the press was: 0 at the feet, up to the head */
+function pressHeight(c,x,y){
+  if(isOrtho(view)||c.pose==='lay') return 0;
+  const k=c.root.scale.y, top=(c.pose==='sit'?1.25:1.7)*k, a=toScreen(c.x,0,c.z), b=toScreen(c.x,top,c.z);
+  if(!a||!b) return 0;
+  const vx=b.x-a.x, vy=b.y-a.y, L=vx*vx+vy*vy||1; return clamp(((x-a.x)*vx+(y-a.y)*vy)/L,0,1)*top;
+}
+function startCharDrag(i,x,y){
+  const c=chars[i], h=pressHeight(c,x,y), p=planeXZ(x,y,h); if(!p) return false;
+  drag={type:'char',idx:i,h,dx:c.x-p[0],dz:c.z-p[1]}; mode='drag'; return true;
+}
+function charAt(x,y){
+  const reach=isTouch?46:30; let best=-1, bd=1e9;
+  const segD=(a,b)=>{if(!a||!b)return 1e9;const vx=b.x-a.x,vy=b.y-a.y,L=vx*vx+vy*vy||1;let t=((x-a.x)*vx+(y-a.y)*vy)/L;t=clamp(t,0,1);return Math.hypot(x-(a.x+vx*t),y-(a.y+vy*t));};
+  chars.forEach((c,i)=>{
+    if(!c.root.visible) return;
+    const k=c.root.scale.y; let d;
+    if(c.pose==='lay'){const r=c.rot*D2R,dx=Math.sin(r)*.9*k,dz=Math.cos(r)*.9*k;d=segD(toScreen(c.x-dx,.25,c.z-dz),toScreen(c.x+dx,.25,c.z+dz));}
+    else d=segD(toScreen(c.x,.05,c.z),toScreen(c.x,(c.pose==='sit'?1.25:1.7)*k,c.z));
+    if(showLabels&&c.label&&c.label.visible){const lp=c.label.getWorldPosition(new THREE.Vector3()),q=toScreen(lp.x,lp.y,lp.z);if(q)d=Math.min(d,Math.hypot(x-q.x,y-q.y)*.8);}
+    if(d<reach&&d<bd){bd=d;best=i;}
+  });
+  return best;
+}
 function floorPoint(x,y){setRay(x,y);return ray.ray.intersectPlane(floorPlane,tmpV)?tmpV.clone():null;}
 function visibleDeep(o){while(o){if(!o.visible)return false;o=o.parent;}return true;}
 function pick(x,y){
+  const ci=charAt(x,y); if(ci>=0) return {type:'char',idx:ci};
   setRay(x,y);
   const hits=ray.intersectObjects([...chars.map(c=>c.root),gBody,gLens,disc,...itemObjs.values()],true);
   for(const h of hits){
@@ -2457,7 +2497,7 @@ function startOrtho(x,y){
   const hit=pick(x,y);
   if(hit&&hit.type==='char'){
     select(hit.idx); const c=chars[hit.idx]; armLongPress(hit.idx,x,y);
-    if(view==='top'){const p=groundXZ(x,y);drag={type:'char',idx:hit.idx,dx:c.x-p[0],dz:c.z-p[1]};mode='drag';return;}
+    if(view==='top'){const p=groundXZ(x,y);drag={type:'char',idx:hit.idx,h:0,dx:c.x-p[0],dz:c.z-p[1]};mode='drag';return;}
   }
   if(placing&&view==='top'){startCharPlace(x,y);return;}
   if(hit&&hit.type==='item'&&hit.door){tap={kind:'door',idx:hit.idx,x,y,moved:false};mode='opan';return;}
@@ -2466,12 +2506,14 @@ function startOrtho(x,y){
 function startSingle(x,y,e){
   drag=null; mode=null; tap=null;
   if(appMode==='pose'){posePointerDown(x,y,e);return;}
-  if(view==='camera'){mode=(e.button===2||e.shiftKey)?'slide':'look';return;}
+  if(view==='camera'){
+    const ci=(e.button===2||e.shiftKey)?-1:charAt(x,y);
+    if(ci>=0){select(ci);armLongPress(ci,x,y);if(startCharDrag(ci,x,y))return;}
+    mode=(e.button===2||e.shiftKey)?'slide':'look';return;
+  }
   if(isOrtho(view)){startOrtho(x,y);return;}
   const hit=pick(x,y), p=floorPoint(x,y);
-  if(hit&&hit.type==='char'&&p){
-    select(hit.idx); const c=chars[hit.idx]; armLongPress(hit.idx,x,y);
-    drag={type:'char',idx:hit.idx,dx:c.x-p.x,dz:c.z-p.z}; mode='drag';
+  if(hit&&hit.type==='char'&&(select(hit.idx),armLongPress(hit.idx,x,y),startCharDrag(hit.idx,x,y))){
   }else if(hit&&hit.type==='cam'&&p){
     drag={type:'cam',dx:cam.x-p.x,dz:cam.z-p.z}; mode='drag';
   }else{
@@ -2530,7 +2572,7 @@ function dragMove(x,y){
   const lim=v=>clamp(v,-CAM_LIMIT,CAM_LIMIT);
   if(drag.type==='joint'){poseDragMove(x,y);return;}
   if(drag.type==='char'){
-    const c=chars[drag.idx], p=groundXZ(x,y); if(!c||!p) return;
+    const c=chars[drag.idx], p=view==='top'?groundXZ(x,y):planeXZ(x,y,drag.h||0); if(!c||!p) return;
     c.x=clamp(p[0]+drag.dx,-WORLD_HALF,WORLD_HALF); c.z=clamp(p[1]+drag.dz,-WORLD_HALF,WORLD_HALF); placeChar(c);
   }else if(drag.type==='cam'){
     const p=groundXZ(x,y); if(!p) return;
