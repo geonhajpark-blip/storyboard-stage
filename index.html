@@ -139,6 +139,9 @@ html.compact .shot{grid-template-columns:104px minmax(0,1fr)}
 .mpad button{border-radius:12px;background:rgba(18,19,22,.72);color:#eef0ec;border:1px solid rgba(255,255,255,.28);font-size:17px;font-weight:700;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);touch-action:none}
 .mpad.lift button{font-size:13px}
 .mpad button.held{background:var(--tape);color:var(--tape-ink);border-color:var(--tape)}
+.mpad .padshot{background:var(--tape);border-color:var(--tape);border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.4)}
+.mpad .padshot i{width:16px;height:16px;border-radius:50%;background:var(--tape-ink);display:block}
+.mpad .padshot:active{transform:scale(.94)}
 .mpad .mid{display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.6);font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.06em}
 html.compact #mpadMove{grid-template-columns:repeat(3,42px);grid-template-rows:repeat(3,42px)}
 html.compact #mpadLift{grid-template-rows:42px 42px}
@@ -414,7 +417,7 @@ html.compact #panel{right:calc(6px + var(--sr,0px));bottom:calc(6px + var(--sb,0
     <div id="sticks">
       <div class="mpad" id="mpadMove" aria-label="Move the camera">
         <button data-k="yaw-" aria-label="Turn left" title="Turn left">&#10226;</button><button data-k="fwd+" aria-label="Forward" title="Forward (W or Up arrow)">&#9650;</button><button data-k="yaw+" aria-label="Turn right" title="Turn right">&#10227;</button>
-        <button data-k="str-" aria-label="Slide left" title="Slide left (A or Left arrow)">&#9664;</button><span class="mid">Walk</span><button data-k="str+" aria-label="Slide right" title="Slide right (D or Right arrow)">&#9654;</button>
+        <button data-k="str-" aria-label="Slide left" title="Slide left (A or Left arrow)">&#9664;</button><button class="padshot" id="padShot" aria-label="Take shot" title="Take shot"><i></i></button><button data-k="str+" aria-label="Slide right" title="Slide right (D or Right arrow)">&#9654;</button>
         <span></span><button data-k="fwd-" aria-label="Back" title="Back (S or Down arrow)">&#9660;</button><span></span>
       </div>
       <div class="mpad lift" id="mpadLift" aria-label="Raise or lower the camera">
@@ -508,7 +511,7 @@ const D2R=Math.PI/180, R2D=180/Math.PI;
 const $=(s,r=document)=>r.querySelector(s);
 /* Claude features (AI models, matching a still) work only inside the published Claude page */
 const HAS_AI=!!(window.claude&&typeof window.claude.use==='function');
-const APP_VERSION='23 (15 Nov 2026)';
+const APP_VERSION='24 (17 Nov 2026)';
 const clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
 const stage=$('#stage'), canvas=$('#gl');
 
@@ -2273,7 +2276,7 @@ const KEYMAP={KeyW:'fwd+',KeyS:'fwd-',KeyA:'str-',KeyD:'str+',ArrowUp:'fwd+',Arr
   KeyE:'up',Space:'up',KeyQ:'dn',KeyC:'dn',ShiftLeft:'boost',ShiftRight:'boost'};
 const keys=new Set();
 /* the on-screen pad: hold a button to keep moving */
-document.querySelectorAll('.mpad button').forEach(b=>{
+document.querySelectorAll('.mpad button[data-k]').forEach(b=>{
   const k=b.dataset.k;
   const on=e=>{keys.add(k);b.classList.add('held');try{b.setPointerCapture(e.pointerId);}catch(err){}e.stopPropagation();e.preventDefault();};
   const off=()=>{keys.delete(k);b.classList.remove('held');};
@@ -2798,6 +2801,16 @@ function setPanel(open){
   layoutOverlays();
 }
 $('#panelBtn').addEventListener('click',()=>setPanel(!$('#app').classList.contains('panelopen')));
+/* tap outside a menu to close it; a tap on the picture only closes the menu, a tap on another button also does that button's job */
+document.addEventListener('pointerdown',e=>{
+  const t=e.target, onPicture=t===canvas, inside=sel=>{const el=$(sel);return el&&el.contains(t);};
+  let closed=false;
+  const pop=$('#castPop');
+  if(pop&&pop.style.display==='block'&&!inside('#castPop')&&!inside('#castBtn')){pop.style.display='none';$('#castBtn').classList.remove('on');closed=true;}
+  const app=$('#app');
+  if(app.classList.contains('panelopen')&&appMode!=='pose'&&!inside('#panel')&&!inside('#panelBtn')&&!inside('#inkEd')&&!inside('#toast')){setPanel(false);closed=true;}
+  if(closed&&onPicture){e.stopPropagation();e.preventDefault();}
+},true);
 /* ---------- Cast tab ---------- */
 const castChips=document.createElement('div'); castChips.className='list castlist';
 const castCtl=document.createElement('div');
@@ -3012,6 +3025,7 @@ function setPlacing(type){
   if(type){
     $('#placeTxt').textContent=type==='@add'?'Tap the map to add a character':'Tap the map to move '+(chars[sel]?chars[sel].name:'a character');
     if(view!=='top') setView('top');
+    setPanel(false);
     hint('Tap to place');
   }
 }
@@ -3403,6 +3417,8 @@ shotList.addEventListener('click',e=>{
   else if(a==='del'){frames.splice(i,1);renderShots();}
 });
 $('#shotBtn').addEventListener('click',addShot);
+$('#padShot').addEventListener('pointerdown',e=>e.stopPropagation());
+$('#padShot').addEventListener('click',e=>{e.stopPropagation();addShot();});
 
 /* ---------- Shots as nodes ---------- */
 const BW=184, GAPX=46, ROWH=240;
